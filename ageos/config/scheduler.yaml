@@ -1,0 +1,19 @@
+defaults:
+  niceness: 0
+  max_concurrent_inferences: 2
+  max_hot_models: 1
+  gpu_reserved_vram_percent: 10
+  gpu_low_priority_concurrency: 1
+  gpu_high_priority_preload: true
+  gpu_backend_policy: admission_control
+  ram_reserved_percent: 15
+  ram_low_watermark_percent: 20
+  ram_no_admit_watermark_percent: 8
+  memory_pressure_policy: queue_then_evict_idle
+  model_load_queue: fifo_by_niceness
+  idle_shutdown_seconds: 300
+
+priority_aliases:
+  realtime: -5
+  normal: 0
+  background: 10

@@ -1,0 +1,27 @@
+default_profile: strict
+network: disabled
+gpu_devices: denied
+profiles:
+  strict:
+    writable_paths:
+      - workdir
+    readonly_paths:
+      - /usr
+      - /lib
+      - /lib64
+      - /bin
+    deny_syscalls:
+      - bpf
+      - mount
+      - ptrace
+      - reboot
+      - swapon
+      - swapoff
+      - perf_event_open
+  python:
+    inherits: strict
+    allow_extra_runtime_syscalls:
+      - getrandom
+      - futex
+      - epoll_wait
+      - epoll_ctl

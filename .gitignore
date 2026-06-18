@@ -1,0 +1,15 @@
+/.DS_Store
+**/.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.venv/
+htmlcov/
+*.egg-info/
+build/
+dist/
+c/build/
+c/.cache/
+.ageos/
+examples/openclaw/openclaw/

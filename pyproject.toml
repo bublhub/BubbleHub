@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ageos"
+version = "0.1.0"
+description = "AgeOS MVP CLI, sandbox, local model scheduler, and Python integrations."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "AgeOS" }]
+dependencies = [
+  "huggingface-hub>=0.23",
+  "pyyaml>=6.0",
+  "requests>=2.31",
+  "rich>=13.7",
+  "typer>=0.12",
+  "pytest>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest-cov>=5.0",
+]
+vllm = [
+  "vllm>=0.5",
+]
+langchain = [
+  "langchain-core>=0.2,<0.4",
+]
+
+[project.scripts]
+ageos = "ageos.cli.main:app"
+ageos-node = "ageos.node.daemon:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ageos*"]
+
+[tool.setuptools.package-data]
+ageos = ["config/*.yaml"]
+
+[tool.setuptools.data-files]
+"share/ageos/c" = [
+  "c/ageos_sandbox_main.c",
+  "c/hw_detect.c",
+  "c/landlock.c",
+  "c/limits.c",
+  "c/meson.build",
+  "c/scheduler.c",
+  "c/sandbox.c",
+]
+"share/ageos/c/include/ageos" = [
+  "c/include/ageos/hw.h",
+  "c/include/ageos/limits.h",
+  "c/include/ageos/scheduler.h",
+  "c/include/ageos/sandbox.h",
+]
+"share/ageos/scripts" = [
+  "scripts/build.sh",
+  "scripts/install.ps1",
+  "scripts/install.sh",
+  "scripts/install-deps.sh",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+markers = [
+  "integration: tests that require a built AgeOS runtime and local inference backend",
+]
