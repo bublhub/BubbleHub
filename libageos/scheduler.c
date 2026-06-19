@@ -669,9 +669,10 @@ char *ageos_scheduler_snapshot_json(void) {
     const char *current_memory_pressure = ram_state(&locked.state, 0.0);
     json_append(
         &json,
-        "{\"hardware\":{\"ram_bytes\":%llu,\"vram_bytes\":%llu},\"limits\":{\"ram_bytes\":%llu,\"vram_bytes\":%llu},\"memory_pressure\":",
+        "{\"hardware\":{\"ram_bytes\":%llu,\"vram_bytes\":%llu,\"free_vram_bytes\":%llu},\"limits\":{\"ram_bytes\":%llu,\"vram_bytes\":%llu},\"memory_pressure\":",
         (unsigned long long)ageos_hw_total_ram_bytes(),
         (unsigned long long)ageos_hw_vram_bytes(),
+        (unsigned long long)ageos_hw_free_vram_bytes(),
         (unsigned long long)(effective_ram_limit_gb(&locked.state) * 1073741824.0),
         (unsigned long long)(effective_vram_limit_gb(&locked.state) * 1073741824.0)
     );

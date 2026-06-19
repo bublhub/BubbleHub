@@ -42,3 +42,19 @@ uint64_t ageos_hw_vram_bytes(void) {
     pclose(fp);
     return (uint64_t)best_mib * 1024ULL * 1024ULL;
 }
+
+uint64_t ageos_hw_free_vram_bytes(void) {
+    FILE *fp = popen("nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null", "r");
+    if (fp == NULL) {
+        return 0;
+    }
+    unsigned long long best_mib = 0;
+    unsigned long long current = 0;
+    while (fscanf(fp, "%llu", &current) == 1) {
+        if (current > best_mib) {
+            best_mib = current;
+        }
+    }
+    pclose(fp);
+    return (uint64_t)best_mib * 1024ULL * 1024ULL;
+}

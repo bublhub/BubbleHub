@@ -3,6 +3,8 @@ from __future__ import annotations
 import ctypes
 import json
 import os
+import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,6 +13,16 @@ from pathlib import Path
 class HardwareInfo:
     ram_bytes: int
     vram_bytes: int
+    free_vram_bytes: int = 0
+    gpu_vendor: str = "none"
+    gpu_name: str = ""
+    gpu_backend: str = "cpu"
+    gpu_backends: tuple[str, ...] = ()
+    gpu_compute_capability: str = ""
+    gpu_device: str = ""
+
+    def supports_backend(self, backend: str) -> bool:
+        return backend in self.gpu_backends
 
 
 @dataclass(frozen=True)
@@ -81,12 +93,235 @@ def detect_hardware() -> HardwareInfo:
     try:
         lib.ageos_hw_total_ram_bytes.restype = ctypes.c_uint64
         lib.ageos_hw_vram_bytes.restype = ctypes.c_uint64
+        free_vram_bytes = _native_free_vram_bytes(lib)
+        vram_bytes = int(lib.ageos_hw_vram_bytes())
+        gpu_profile = _detect_gpu_profile(vram_bytes, free_vram_bytes)
         return HardwareInfo(
             ram_bytes=int(lib.ageos_hw_total_ram_bytes()),
-            vram_bytes=int(lib.ageos_hw_vram_bytes()),
+            vram_bytes=int(gpu_profile["vram_bytes"]),
+            free_vram_bytes=int(gpu_profile["free_vram_bytes"]),
+            gpu_vendor=str(gpu_profile["gpu_vendor"]),
+            gpu_name=str(gpu_profile["gpu_name"]),
+            gpu_backend=str(gpu_profile["gpu_backend"]),
+            gpu_backends=tuple(str(item) for item in gpu_profile["gpu_backends"]),
+            gpu_compute_capability=str(gpu_profile["gpu_compute_capability"]),
+            gpu_device=str(gpu_profile["gpu_device"]),
         )
     except AttributeError as exc:
         raise LibAgeosError("libageos.so is missing required hardware detection symbols") from exc
+
+
+def _native_free_vram_bytes(lib: ctypes.CDLL) -> int:
+    try:
+        lib.ageos_hw_free_vram_bytes.restype = ctypes.c_uint64
+        return int(lib.ageos_hw_free_vram_bytes())
+    except AttributeError:
+        return 0
+
+
+def _detect_gpu_profile(vram_bytes: int, free_vram_bytes: int) -> dict[str, object]:
+    override = _gpu_profile_from_env()
+    if override is not None:
+        return override
+    nvidia = _detect_nvidia_gpu()
+    if nvidia is not None:
+        return nvidia
+    amd = _detect_amd_gpu(vram_bytes, free_vram_bytes)
+    if amd is not None:
+        return amd
+    intel = _detect_intel_gpu(vram_bytes, free_vram_bytes)
+    if intel is not None:
+        return intel
+    vulkan = _detect_vulkan_gpu(vram_bytes, free_vram_bytes)
+    if vulkan is not None:
+        return vulkan
+    return _gpu_profile(
+        vram_bytes=vram_bytes,
+        free_vram_bytes=free_vram_bytes,
+    )
+
+
+def _gpu_profile_from_env() -> dict[str, object] | None:
+    backends = _split_env_list(os.environ.get("AGEOS_GPU_BACKENDS"))
+    vendor = os.environ.get("AGEOS_GPU_VENDOR")
+    backend = os.environ.get("AGEOS_GPU_BACKEND")
+    name = os.environ.get("AGEOS_GPU_NAME", "")
+    compute = os.environ.get("AGEOS_GPU_COMPUTE_CAPABILITY", "")
+    device = os.environ.get("AGEOS_GPU_DEVICE", "")
+    vram_bytes = _env_int("AGEOS_GPU_VRAM_BYTES")
+    free_vram_bytes = _env_int("AGEOS_GPU_FREE_VRAM_BYTES")
+    if vendor is None and backend is None and not backends and vram_bytes is None and free_vram_bytes is None:
+        return None
+    if backend and backend != "cpu" and backend not in backends:
+        backends.insert(0, backend)
+    if backend is None:
+        backend = backends[0] if backends else "cpu"
+    return _gpu_profile(
+        vram_bytes=vram_bytes or 0,
+        free_vram_bytes=free_vram_bytes or vram_bytes or 0,
+        vendor=vendor or ("generic" if backends else "none"),
+        name=name,
+        backend=backend,
+        backends=tuple(backends),
+        compute_capability=compute,
+        device=device,
+    )
+
+
+def _detect_nvidia_gpu() -> dict[str, object] | None:
+    if shutil.which("nvidia-smi") is None:
+        return None
+    output = _run_text(
+        [
+            "nvidia-smi",
+            "--query-gpu=name,memory.total,memory.free,compute_cap",
+            "--format=csv,noheader,nounits",
+        ]
+    )
+    if not output:
+        return None
+    best: dict[str, object] | None = None
+    for index, line in enumerate(output.splitlines()):
+        parts = [part.strip() for part in line.split(",")]
+        if len(parts) < 4:
+            continue
+        total_mib = _parse_float(parts[1])
+        free_mib = _parse_float(parts[2])
+        compute = parts[3]
+        backends = ["cuda-llama"]
+        if _supports_vllm_compute(compute):
+            backends.insert(0, "vllm")
+        candidate = _gpu_profile(
+            vram_bytes=int(total_mib * 1024**2),
+            free_vram_bytes=int(free_mib * 1024**2),
+            vendor="nvidia",
+            name=parts[0],
+            backend=backends[0],
+            backends=tuple(backends),
+            compute_capability=compute,
+            device=str(index),
+        )
+        if best is None or int(candidate["free_vram_bytes"]) > int(best["free_vram_bytes"]):
+            best = candidate
+    return best
+
+
+def _detect_amd_gpu(vram_bytes: int, free_vram_bytes: int) -> dict[str, object] | None:
+    if shutil.which("rocm-smi") is None and shutil.which("rocminfo") is None:
+        return None
+    name = ""
+    output = _run_text(["rocm-smi", "--showproductname"]) if shutil.which("rocm-smi") else ""
+    for line in output.splitlines():
+        if "Card series" in line or "Card model" in line:
+            name = line.split(":", 1)[-1].strip()
+            break
+    return _gpu_profile(
+        vram_bytes=vram_bytes,
+        free_vram_bytes=free_vram_bytes or vram_bytes,
+        vendor="amd",
+        name=name,
+        backend="rocm-llama",
+        backends=("rocm-llama",),
+    )
+
+
+def _detect_intel_gpu(vram_bytes: int, free_vram_bytes: int) -> dict[str, object] | None:
+    if shutil.which("sycl-ls") is None:
+        return None
+    output = _run_text(["sycl-ls"])
+    if "gpu" not in output.lower():
+        return None
+    return _gpu_profile(
+        vram_bytes=vram_bytes,
+        free_vram_bytes=free_vram_bytes or vram_bytes,
+        vendor="intel",
+        name="SYCL GPU",
+        backend="sycl-llama",
+        backends=("sycl-llama",),
+    )
+
+
+def _detect_vulkan_gpu(vram_bytes: int, free_vram_bytes: int) -> dict[str, object] | None:
+    if shutil.which("vulkaninfo") is None:
+        return None
+    output = _run_text(["vulkaninfo", "--summary"])
+    if "deviceName" not in output:
+        return None
+    name = ""
+    for line in output.splitlines():
+        if "deviceName" in line:
+            name = line.split("=", 1)[-1].strip()
+            break
+    return _gpu_profile(
+        vram_bytes=vram_bytes,
+        free_vram_bytes=free_vram_bytes or vram_bytes,
+        vendor="vulkan",
+        name=name,
+        backend="vulkan-llama",
+        backends=("vulkan-llama",),
+    )
+
+
+def _gpu_profile(
+    *,
+    vram_bytes: int,
+    free_vram_bytes: int,
+    vendor: str = "none",
+    name: str = "",
+    backend: str = "cpu",
+    backends: tuple[str, ...] = (),
+    compute_capability: str = "",
+    device: str = "",
+) -> dict[str, object]:
+    return {
+        "vram_bytes": max(0, int(vram_bytes)),
+        "free_vram_bytes": max(0, int(free_vram_bytes)),
+        "gpu_vendor": vendor,
+        "gpu_name": name,
+        "gpu_backend": backend,
+        "gpu_backends": backends,
+        "gpu_compute_capability": compute_capability,
+        "gpu_device": device,
+    }
+
+
+def _supports_vllm_compute(value: str) -> bool:
+    try:
+        major = int(value.split(".", 1)[0])
+    except (ValueError, IndexError):
+        return False
+    return major >= 8
+
+
+def _run_text(command: list[str]) -> str:
+    try:
+        result = subprocess.run(command, check=False, text=True, capture_output=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout if result.returncode == 0 else ""
+
+
+def _env_int(name: str) -> int | None:
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _split_env_list(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
+
+
+def _parse_float(value: str) -> float:
+    try:
+        return float(value)
+    except ValueError:
+        return 0.0
 
 
 def is_sandboxed() -> bool:

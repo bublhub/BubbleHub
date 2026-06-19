@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 import time
 
 from rich.console import Console, Group
@@ -29,12 +30,12 @@ def _render() -> Group:
     ram_total = _limit_or_hardware(limits, hardware, "ram_bytes")
     vram_total = _limit_or_hardware(limits, hardware, "vram_bytes")
     models = snapshot["models"]  # type: ignore[index]
-    ram_model_bytes = int(sum(float(item.get("ram_gb", 0)) * 1024**3 for item in models))
-    vram_model_bytes = int(sum(float(item.get("vram_gb", 0)) * 1024**3 for item in models))
+    ram_used = _actual_ram_used_bytes(ram_total)
+    vram_used = _actual_vram_used_bytes(hardware, vram_total, models)
 
     return Group(
-        Panel(_bars(ram_total, ram_model_bytes, "RAM", snapshot["memory_pressure"]), title="AgeOS Memory"),
-        Panel(_bars(vram_total, vram_model_bytes, "VRAM", "n/a" if vram_total == 0 else "tracked"), title="AgeOS GPU"),
+        Panel(_bars(ram_total, ram_used, "RAM", snapshot["memory_pressure"]), title="AgeOS Memory"),
+        Panel(_bars(vram_total, vram_used, "VRAM", "n/a" if vram_total == 0 else "tracked"), title="AgeOS GPU"),
         _agents_table(snapshot["agents"]),  # type: ignore[index]
         _models_table(models),
         _queue_table(snapshot["queue"]),  # type: ignore[index]
@@ -42,13 +43,14 @@ def _render() -> Group:
 
 
 def _limit_or_hardware(limits: object, hardware: object, key: str) -> int:
+    hardware_value = 0
+    if isinstance(hardware, dict):
+        hardware_value = _int_or_zero(hardware.get(key))
     if isinstance(limits, dict):
         limit = _int_or_zero(limits.get(key))
         if limit > 0:
-            return limit
-    if isinstance(hardware, dict):
-        return _int_or_zero(hardware.get(key))
-    return 0
+            return min(limit, hardware_value) if hardware_value > 0 else limit
+    return hardware_value
 
 
 def _int_or_zero(value: object) -> int:
@@ -58,16 +60,63 @@ def _int_or_zero(value: object) -> int:
         return 0
 
 
+def _actual_ram_used_bytes(total: int) -> int:
+    meminfo = _meminfo()
+    mem_total = meminfo.get("MemTotal", total)
+    mem_available = meminfo.get("MemAvailable", 0)
+    if mem_total <= 0 or mem_available <= 0:
+        return 0
+    used = mem_total - mem_available
+    if total > 0 and total < mem_total:
+        return int(used * (total / mem_total))
+    return used
+
+
+def _actual_vram_used_bytes(hardware: object, total: int, models: list[dict[str, object]]) -> int:
+    free = _int_or_zero(hardware.get("free_vram_bytes")) if isinstance(hardware, dict) else 0
+    if total > 0 and free > 0:
+        return max(0, total - min(free, total))
+    return int(sum(float(item.get("vram_gb", 0)) * 1024**3 for item in models))
+
+
+def _meminfo() -> dict[str, int]:
+    values: dict[str, int] = {}
+    try:
+        text = Path("/proc/meminfo").read_text(encoding="utf-8")
+    except OSError:
+        return values
+    for line in text.splitlines():
+        key, _, rest = line.partition(":")
+        parts = rest.split()
+        if not parts:
+            continue
+        try:
+            values[key] = int(parts[0]) * 1024
+        except ValueError:
+            continue
+    return values
+
+
 def _bars(total: int, used: int, label: str, state: object) -> Progress:
     progress = Progress(
         TextColumn(f"{label}"),
         BarColumn(bar_width=50),
         TextColumn("{task.percentage:>3.0f}%"),
+        TextColumn(f"{_format_bytes(used)} / {_format_bytes(total)}"),
         TextColumn(f"state={state}"),
     )
     total_safe = max(total, 1)
     progress.add_task(label, total=total_safe, completed=min(used, total_safe))
     return progress
+
+
+def _format_bytes(value: int) -> str:
+    if value <= 0:
+        return "0GiB"
+    gib = value / 1024**3
+    if gib >= 10:
+        return f"{gib:.0f}GiB"
+    return f"{gib:.1f}GiB"
 
 
 def _agents_table(agents: list[dict[str, object]]) -> Table:
@@ -80,12 +129,45 @@ def _agents_table(agents: list[dict[str, object]]) -> Table:
 
 
 def _models_table(models: list[dict[str, object]]) -> Table:
-    table = Table(title="Models Consuming Memory")
-    for column in ["name", "backend", "specialty", "ram_gb", "vram_gb", "pid", "port", "refcount"]:
+    table = Table(title="Loaded Model Reservations")
+    columns = ["name", "backend", "specialty", "ram_reserved", "vram_reserved", "rss", "pid", "port", "refcount"]
+    for column in columns:
         table.add_column(column)
     for item in models:
-        table.add_row(*(str(item.get(column, "")) for column in ["name", "backend", "specialty", "ram_gb", "vram_gb", "pid", "port", "refcount"]))
+        pid = _int_or_zero(item.get("pid"))
+        table.add_row(
+            str(item.get("name", "")),
+            str(item.get("backend", "")),
+            str(item.get("specialty", "")),
+            f"{float(item.get('ram_gb', 0)):g}G",
+            f"{float(item.get('vram_gb', 0)):g}G",
+            _format_bytes(_rss_bytes(pid)),
+            str(item.get("pid", "")),
+            str(item.get("port", "")),
+            str(item.get("refcount", "")),
+        )
     return table
+
+
+def _rss_bytes(pid: int) -> int:
+    if pid <= 0:
+        return 0
+    status = Path("/proc") / str(pid) / "status"
+    try:
+        text = status.read_text(encoding="utf-8")
+    except OSError:
+        return 0
+    for line in text.splitlines():
+        if not line.startswith("VmRSS:"):
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            return 0
+        try:
+            return int(parts[1]) * 1024
+        except ValueError:
+            return 0
+    return 0
 
 
 def _queue_table(queue: list[dict[str, object]]) -> Table:

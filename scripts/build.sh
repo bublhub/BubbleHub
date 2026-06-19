@@ -10,6 +10,7 @@ BIN_DIR="${AGEOS_BIN_DIR:-/usr/local/bin}"
 BUILD_DIR="$ROOT/libageos/build"
 C_SOURCE_DIR="$ROOT/libageos"
 SUDO="${SUDO:-sudo}"
+AGEOS_GPU_MODE="${AGEOS_GPU:-auto}"
 NATIVE_STAGE=""
 PY_WHEEL_DIR=""
 
@@ -56,9 +57,12 @@ fi
 
 echo "Building AgeOS Python wheel..."
 PY_WHEEL_DIR="$(mktemp -d)"
-"$PYTHON_BIN" -m pip wheel "$ROOT" --wheel-dir "$PY_WHEEL_DIR"
+"$PYTHON_BIN" -m pip install --upgrade pip build
+"$PYTHON_BIN" -m build --wheel --outdir "$PY_WHEEL_DIR" "$ROOT"
+shopt -s nullglob
 AGEOS_WHEELS=("$PY_WHEEL_DIR"/ageos-*.whl)
-if [[ ! -e "${AGEOS_WHEELS[0]}" ]]; then
+shopt -u nullglob
+if [[ ${#AGEOS_WHEELS[@]} -eq 0 ]]; then
   echo "Failed to build AgeOS wheel." >&2
   exit 1
 fi
@@ -68,7 +72,11 @@ ${SUDO} rm -rf "$INSTALL_PREFIX"
 ${SUDO} mkdir -p "$INSTALL_PREFIX"
 ${SUDO} "$PYTHON_BIN" -m venv "$INSTALL_PREFIX"
 ${SUDO} "$INSTALL_PREFIX/bin/python" -m pip install --upgrade pip
-${SUDO} "$INSTALL_PREFIX/bin/python" -m pip install --no-index --find-links "$PY_WHEEL_DIR" "${AGEOS_WHEELS[0]}"
+${SUDO} "$INSTALL_PREFIX/bin/python" -m pip install --find-links "$PY_WHEEL_DIR" "${AGEOS_WHEELS[0]}"
+${SUDO} env AGEOS_GPU="$AGEOS_GPU_MODE" "$INSTALL_PREFIX/bin/python" -m ageos.gpu_setup \
+  --mode "$AGEOS_GPU_MODE" \
+  --wheel "${AGEOS_WHEELS[0]}" \
+  --profile-out "$INSTALL_PREFIX/install-profile.json"
 ${SUDO} mv "$INSTALL_PREFIX/bin/ageos" "$INSTALL_PREFIX/bin/ageos-entrypoint"
 ${SUDO} mv "$INSTALL_PREFIX/bin/ageos-node" "$INSTALL_PREFIX/bin/ageos-node-entrypoint"
 

@@ -21,6 +21,33 @@ def test_default_instruct_skips_vllm_and_short_context_models_without_vram() -> 
     assert model.context_tokens >= 8192
 
 
+def test_default_instruct_prefers_accelerated_llama_for_mid_vram() -> None:
+    registry = ModelRegistry.load_default()
+    model = registry.resolve_specialty(
+        "default-instruct",
+        ["large", "medium", "small", "tiny"],
+        max_ram_gb=128,
+        max_vram_gb=11,
+        supported_gpu_backends=("cuda-llama",),
+    )
+    assert model.name == "qwen-instruct-gpu-small"
+    assert model.backend == "llama"
+    assert model.placement == "gpu"
+
+
+def test_default_instruct_prefers_vllm_when_supported() -> None:
+    registry = ModelRegistry.load_default()
+    model = registry.resolve_specialty(
+        "default-instruct",
+        ["large", "medium", "small", "tiny"],
+        max_ram_gb=128,
+        max_vram_gb=24,
+        supported_gpu_backends=("vllm", "cuda-llama"),
+    )
+    assert model.name == "qwen-instruct-large"
+    assert model.backend == "vllm"
+
+
 def test_default_registry_lists_specialties() -> None:
     registry = ModelRegistry.load_default()
     assert "default-instruct" in registry.specialties

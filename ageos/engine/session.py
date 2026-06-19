@@ -49,15 +49,34 @@ class EngineSession:
         max_ram_gb = _limit_gb(limits.get("ram_bytes"), hardware.ram_bytes)
         max_vram_gb = _limit_gb(limits.get("vram_bytes"), hardware.vram_bytes)
         tier = select_tier(hardware)
-        model = registry.resolve_specialty(
+        candidates = registry.resolve_candidates(
             self.specialty,
             tier_order=tier.order,
             flavor=self.flavor,
             capability=self.capability,
             max_ram_gb=max_ram_gb,
             max_vram_gb=max_vram_gb,
+            supported_gpu_backends=hardware.gpu_backends,
         )
-        self._status(f"Selected model {model.name} ({model.backend})")
+        if not candidates:
+            raise RuntimeError(f"no model matches specialty '{self.specialty}' for available RAM/VRAM")
+        errors: list[str] = []
+        for index, model in enumerate(candidates):
+            try:
+                return self._start_model(model)
+            except Exception as exc:
+                if not _can_fallback(model, candidates[index + 1 :]):
+                    if errors:
+                        detail = "; ".join([*errors, f"{model.name}: {exc}"])
+                        raise RuntimeError(f"no AgeOS model backend could be started: {detail}") from exc
+                    raise
+                self.scheduler.evict_model(model.name)
+                errors.append(f"{model.name}: {exc}")
+                self._status(f"Falling back from {model.name}: {exc}")
+        raise RuntimeError(f"no AgeOS model backend could be started: {'; '.join(errors)}")
+
+    def _start_model(self, model: ModelSpec) -> "EngineSession":
+        self._status(f"Selected model {model.name} ({model.backend}, {model.placement})")
         admission = self.scheduler.admit_model_job(
             specialty=self.specialty,
             model_name=model.name,
@@ -167,6 +186,10 @@ def _model_pid(backend: LlamaBackend | VllmBackend | None) -> int:
 
 def _model_port(backend: LlamaBackend | VllmBackend | None) -> int:
     return int(getattr(backend, "port", 0) or 0)
+
+
+def _can_fallback(model: ModelSpec, remaining: list[ModelSpec]) -> bool:
+    return (model.placement == "gpu" or model.vram_gb > 0) and bool(remaining)
 
 
 def default_max_output_tokens() -> int:

@@ -182,18 +182,17 @@ def _choose_base_model(speciality: str) -> None:
     hardware = detect_hardware()
     tier = select_tier(hardware)
     selected = _selected_model_name(registry, speciality, tier.order, hardware)
-    candidates = [
-        model
-        for model in registry.models
-        if model.capability == "instruct"
-        and model.ram_gb <= hardware.ram_bytes / 1024**3
-        and model.vram_gb <= hardware.vram_bytes / 1024**3
-    ]
+    candidates = registry.resolve_candidates(
+        speciality,
+        tier_order=tier.order,
+        capability="instruct",
+        max_ram_gb=hardware.ram_bytes / 1024**3,
+        max_vram_gb=hardware.vram_bytes / 1024**3,
+        supported_gpu_backends=hardware.gpu_backends,
+    )
     if not candidates:
         raise typer.BadParameter("no instruct models fit the current machine")
 
-    rank = {tier_name: index for index, tier_name in enumerate(tier.order)}
-    candidates.sort(key=lambda item: (rank.get(item.tier, 999), item.name))
     default_index = next(
         (index for index, model in enumerate(candidates, start=1) if model.name == selected),
         1,
@@ -244,6 +243,7 @@ def _selected_model_name(
             tier_order,
             max_ram_gb=getattr(hardware, "ram_bytes") / 1024**3,
             max_vram_gb=getattr(hardware, "vram_bytes") / 1024**3,
+            supported_gpu_backends=getattr(hardware, "gpu_backends", ()),
         )
     except KeyError:
         return None

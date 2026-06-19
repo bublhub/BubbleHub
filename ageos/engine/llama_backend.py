@@ -46,6 +46,9 @@ class LlamaBackend:
             "--parallel",
             str(_llama_parallel()),
         ]
+        gpu_layers = _llama_gpu_layers(model)
+        if gpu_layers is not None:
+            args.extend(["--n-gpu-layers", str(gpu_layers)])
         self.log_handle = tempfile.NamedTemporaryFile(
             mode="w+",
             encoding="utf-8",
@@ -153,6 +156,19 @@ def _llama_parallel() -> int:
     if parallel <= 0:
         raise RuntimeError("AGEOS_LLAMA_PARALLEL must be greater than zero")
     return parallel
+
+
+def _llama_gpu_layers(model: ModelSpec) -> int | None:
+    if model.placement != "gpu" or model.vram_gb <= 0:
+        return None
+    value = os.environ.get("AGEOS_LLAMA_GPU_LAYERS")
+    if value is None:
+        return model.gpu_layers if model.gpu_layers is not None else -1
+    try:
+        layers = int(value)
+    except ValueError:
+        raise RuntimeError("AGEOS_LLAMA_GPU_LAYERS must be an integer") from None
+    return layers
 
 
 def _llama_env(binary: str) -> dict[str, str]:
