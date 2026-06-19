@@ -40,9 +40,9 @@ irm https://github.com/ageos-labs/ageos-runtime/releases/latest/download/install
 
 ## 🔗 Links
 
-* Website: [ageos-labs.com](https://ageos-labs.com)
-* GitHub: [ageos-labs/ageos-runtime](https://github.com/ageos-labs/ageos-runtime)
-* Discord: [Join our community](https://discord.gg/skwKqSgvD2)
+🌐 Website → [AgeOS Labs](https://ageos-labs.com)
+💻 GitHub → [ageos-runtime](https://github.com/ageos-labs/ageos-runtime)
+💬 Discord → [Join community](https://discord.gg/skwKqSgvD2)
 
 ## ❤️ Contributors
 

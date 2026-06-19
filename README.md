@@ -111,6 +111,9 @@ Push a `v*` tag. The release workflow runs unit tests, runs local-inference inte
 - `container-image.txt`
 - `SHA256SUMS`
 
+For Cursor-written release notes, ask Cursor to use the AgeOS release-notes skill before tagging.
+It writes `.github/releases/<tag>.md` from commits since the previous release, and the release workflow uses that file when present.
+
 Install a specific tag:
 
 ```bash
