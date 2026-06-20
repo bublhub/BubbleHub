@@ -51,16 +51,16 @@ Ask the local model a question:
 ageos prompt --text "Say hello from AgeOS"
 ```
 
-Start the OpenAI-compatible local endpoint:
-
-```bash
-ageos serve
-```
-
 Run an agent in the sandbox:
 
 ```bash
 ageos run --root-dir . --binary ./examples/basic_agent.py --memory 16G
+```
+
+Start the OpenAI-compatible local endpoint (optional):
+
+```bash
+ageos serve
 ```
 
 Pick or inspect models:
@@ -170,8 +170,6 @@ docker run --rm --privileged --security-opt seccomp=unconfined \
   -v ageos-openclaw-local:/cache/openclaw \
   ageos-runtime:integration
 ```
-
-Expected pytest output includes deselected tests because each command runs one test group: unit tests exclude integration tests, and integration tests exclude unit tests.
 
 ## License
 
