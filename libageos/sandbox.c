@@ -783,6 +783,7 @@ static int setup_sandbox_runtime_env(
     unsetenv("PYTHONHOME");
     unsetenv("PYTHONUSERBASE");
     unsetenv("AGEOS_LOG_FILE");
+    unsetenv("AGEOS_LOG_LEVEL");
     setenv("PYTHONNOUSERSITE", "1", 1);
     return setup_sandbox_scheduler_env(host_uid);
 }

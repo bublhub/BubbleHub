@@ -105,7 +105,9 @@ def run_agent(
     env = dict()
     env["AGEOS_AGENT_ID"] = agent_id
     env["AGEOS_NICENESS"] = str(niceness)
-    env.pop("AGEOS_LOG_FILE", None)
+    # we want to see logs for the sandbox invocation, we will remove these later for the agent
+    env["AGEOS_LOG_FILE"] = os.environ.get("AGEOS_LOG_FILE", "")
+    env["AGEOS_LOG_LEVEL"] = os.environ.get("AGEOS_LOG_LEVEL", "")
     endpoint = apply_inference_env(env, speciality)
     log_info("using inference endpoint", endpoint)
     typer.echo(f"Using AgeOS inference endpoint at {endpoint}")
@@ -114,7 +116,7 @@ def run_agent(
     host_args = [*_argv_for_binary(resolved_binary), *extra_args]
     log_debug(
         "launching agent",
-        f"agent_id={agent_id} binary={resolved_binary} sandbox={not unsafe_no_sandbox}",
+        f"agent_id={agent_id} binary={resolved_binary} sandbox={not unsafe_no_sandbox} env={env}",
     )
     try:
         if platform.system() != "Linux" and not unsafe_no_sandbox:
