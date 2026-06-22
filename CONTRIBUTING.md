@@ -9,7 +9,7 @@ Thank you for your interest in contributing to AgeOS!
 
 ```bash
 git clone https://github.com/<your-username>/ageos-runtime.git
-cd ageos
+cd ageos-runtime
 ```
 
 3. Add the upstream repository:
