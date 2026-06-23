@@ -9,6 +9,5 @@ ruff check .
 ruff format --check .
 
 echo "--- C lint (clang-format) ---"
-find libageos -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror
-
+find libageos -type f \( -name '*.c' -o -name '*.h' \) -print0 | xargs -0 -r clang-format --dry-run --Werror
 echo "All lint checks passed."
