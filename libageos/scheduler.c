@@ -6,13 +6,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-#include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
@@ -394,8 +394,7 @@ static int add_queue_item_locked(
     const char *specialty,
     const char *model_name,
     int niceness,
-    const char *reason
-) {
+    const char *reason) {
     int index = find_free_queue(state);
     if (index < 0) {
         index = 0;
@@ -433,8 +432,7 @@ int ageos_scheduler_admit_model_job(
     char *state,
     size_t state_size,
     char *reason,
-    size_t reason_size
-) {
+    size_t reason_size) {
     if (allowed == NULL || state == NULL || state_size == 0 || reason == NULL || reason_size == 0) {
         return -1;
     }
@@ -470,8 +468,7 @@ int ageos_scheduler_admit_model_job(
             requested_vram_gb > 0.0 &&
             vram_total_gb > 0.0 &&
             committed_vram_gb(&locked.state) + requested_vram_gb + (vram_total_gb * AGEOS_GPU_RESERVED_VRAM_PERCENT / 100.0) > vram_total_gb &&
-            niceness > 0
-        ) {
+            niceness > 0) {
             is_allowed = 0;
             current_reason = "VRAM low: background job queued";
         }
@@ -486,8 +483,7 @@ int ageos_scheduler_admit_model_job(
         model_name,
         is_allowed,
         current_state,
-        current_reason
-    );
+        current_reason);
     if (!is_allowed) {
         char job_id[AGEOS_FIELD_SMALL];
         snprintf(job_id, sizeof(job_id), "job-%ld-%d", (long)time(NULL), (int)getpid());
@@ -501,8 +497,7 @@ int ageos_scheduler_register_agent(
     int64_t pid,
     const char *binary,
     int niceness,
-    const char *specialty
-) {
+    const char *specialty) {
     if (agent_id == NULL || agent_id[0] == '\0') {
         return -1;
     }
@@ -553,8 +548,7 @@ int ageos_scheduler_mark_model_loaded(
     double ram_gb,
     double vram_gb,
     int64_t pid,
-    int port
-) {
+    int port) {
     if (name == NULL || name[0] == '\0') {
         return -1;
     }
@@ -594,8 +588,7 @@ int ageos_scheduler_mark_model_loaded(
         name,
         backend,
         (long long)pid,
-        port
-    );
+        port);
     return unlock_state(&locked, 1);
 }
 
@@ -633,8 +626,7 @@ int ageos_scheduler_add_queue_item(
     const char *specialty,
     const char *model_name,
     int niceness,
-    const char *reason
-) {
+    const char *reason) {
     ageos_locked_state locked;
     if (job_id == NULL || lock_state(&locked) != 0) {
         return -1;
@@ -697,8 +689,7 @@ char *ageos_scheduler_snapshot_json(void) {
         (unsigned long long)ageos_hw_vram_bytes(),
         (unsigned long long)ageos_hw_free_vram_bytes(),
         (unsigned long long)(effective_ram_limit_gb(&locked.state) * 1073741824.0),
-        (unsigned long long)(effective_vram_limit_gb(&locked.state) * 1073741824.0)
-    );
+        (unsigned long long)(effective_vram_limit_gb(&locked.state) * 1073741824.0));
     json_string(&json, current_memory_pressure);
     json_append(&json, ",\"agents\":[");
     int first = 1;
@@ -740,8 +731,7 @@ char *ageos_scheduler_snapshot_json(void) {
             item->port,
             item->refcount,
             ageos_now_seconds() - item->loaded_at,
-            ageos_now_seconds() - item->last_used
-        );
+            ageos_now_seconds() - item->last_used);
         first = 0;
     }
     json_append(&json, "],\"queue\":[");
@@ -910,8 +900,7 @@ static int parse_chat_request(const char *request_json, ageos_chat_request *requ
         json_get_string_field(request_json, "model_name", request->model_name, sizeof(request->model_name)) != 0 ||
         json_get_string_field(request_json, "backend", request->backend, sizeof(request->backend)) != 0 ||
         json_get_string_field(request_json, "model_path", request->model_path, sizeof(request->model_path)) != 0 ||
-        json_get_string_field(request_json, "messages_json", request->messages_json, sizeof(request->messages_json)) != 0
-    ) {
+        json_get_string_field(request_json, "messages_json", request->messages_json, sizeof(request->messages_json)) != 0) {
         return -1;
     }
     request->ram_gb = json_get_double_field(request_json, "ram_gb", 0.0);
@@ -1091,8 +1080,7 @@ static int spawn_llama_backend(const ageos_chat_request *request, int *port_out,
                 parallel,
                 "--n-gpu-layers",
                 gpu_layers,
-                (char *)NULL
-            );
+                (char *)NULL);
         } else {
             execlp(
                 "llama-server",
@@ -1107,8 +1095,7 @@ static int spawn_llama_backend(const ageos_chat_request *request, int *port_out,
                 ctx_size,
                 "--parallel",
                 parallel,
-                (char *)NULL
-            );
+                (char *)NULL);
         }
         _exit(127);
     }
@@ -1172,8 +1159,7 @@ static int spawn_vllm_backend(const ageos_chat_request *request, int *port_out, 
             "127.0.0.1",
             "--port",
             port_text,
-            (char *)NULL
-        );
+            (char *)NULL);
         _exit(127);
     }
     if (log_fd >= 0) {
@@ -1205,10 +1191,8 @@ static int ensure_native_model_loaded(const ageos_chat_request *request, int *po
             state,
             sizeof(state),
             reason,
-            sizeof(reason)
-        ) != 0 ||
-        !allowed
-    ) {
+            sizeof(reason)) != 0 ||
+        !allowed) {
         return -1;
     }
 
@@ -1224,8 +1208,7 @@ static int ensure_native_model_loaded(const ageos_chat_request *request, int *po
                 request->ram_gb,
                 request->vram_gb,
                 pid,
-                port
-            );
+                port);
             *port_out = port;
             *pid_out = pid;
             return 0;
@@ -1249,8 +1232,7 @@ static int ensure_native_model_loaded(const ageos_chat_request *request, int *po
         request->ram_gb,
         request->vram_gb,
         pid,
-        port
-    );
+        port);
     *port_out = port;
     *pid_out = pid;
     return 0;
@@ -1268,8 +1250,7 @@ static int http_post_chat(int port, const ageos_chat_request *request, char *res
         "{\"model\":\"%s\",\"messages\":%s,\"stream\":false,\"max_tokens\":%d}",
         request->model_name,
         request->messages_json,
-        request->max_tokens
-    );
+        request->max_tokens);
     if (written < 0 || (size_t)written >= sizeof(payload)) {
         close(fd);
         return -1;
@@ -1279,8 +1260,7 @@ static int http_post_chat(int port, const ageos_chat_request *request, char *res
         header,
         sizeof(header),
         "POST /v1/chat/completions HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n",
-        strlen(payload)
-    );
+        strlen(payload));
     if (written < 0 || (size_t)written >= sizeof(header)) {
         close(fd);
         return -1;
@@ -1366,8 +1346,7 @@ static int http_post_sandbox_inference(const ageos_chat_request *request, char *
         header,
         sizeof(header),
         "POST /v1/chat/completions HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n",
-        strlen(payload_builder.data)
-    );
+        strlen(payload_builder.data));
     if (written < 0 || (size_t)written >= sizeof(header)) {
         free(buffer);
         close(fd);
