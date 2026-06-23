@@ -77,18 +77,6 @@ Include additional details in the commit body when necessary.
 
 Before opening a pull request, run the same tests used in CI.
 
-### Linting
-
-```bash
-pre-commit run --all-files
-```
-
-If you want to run the standalone CI-equivalent lint script locally, install `clang-format` and then run:
-
-```bash
-./scripts/ci/run-lint.sh
-```
-
 ### Unit Tests
 
 ```bash
