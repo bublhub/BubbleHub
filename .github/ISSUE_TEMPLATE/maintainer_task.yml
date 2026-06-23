@@ -1,6 +1,6 @@
 name: Maintainer Task
 description: Internal template for maintainers to track feature work and enhancements.
-title: "chore: "
+title: "feat: "
 labels: ["feature", "enhancement"]
 body:
   - type: markdown
