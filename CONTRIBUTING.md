@@ -18,6 +18,19 @@ cd ageos-runtime
 git remote add upstream https://github.com/ageos-labs/ageos-runtime.git
 ```
 
+4. Install the development tooling used by CI and local hooks:
+
+```bash
+python -m pip install -e '.[dev]'
+pre-commit install
+```
+
+The `pre-commit install` step enables the repository's lint hooks so they run automatically on each local commit. Before opening a pull request, you can also run them manually with:
+
+```bash
+pre-commit run --all-files
+```
+
 ## Branch Naming
 
 Create a new branch for each change:
@@ -63,6 +76,18 @@ Include additional details in the commit body when necessary.
 ## Testing Requirements
 
 Before opening a pull request, run the same tests used in CI.
+
+### Linting
+
+```bash
+pre-commit run --all-files
+```
+
+If you want to run the standalone CI-equivalent lint script locally, install `clang-format` and then run:
+
+```bash
+./scripts/ci/run-lint.sh
+```
 
 ### Unit Tests
 
