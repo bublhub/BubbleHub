@@ -86,3 +86,5 @@ line-length = 150
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
