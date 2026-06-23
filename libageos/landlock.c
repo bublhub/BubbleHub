@@ -247,8 +247,7 @@ int ageos_landlock_apply_filesystem(const char *writable_dir, int allow_dns) {
             ruleset_fd,
             dns_readonly_paths,
             sizeof(dns_readonly_paths) / sizeof(dns_readonly_paths[0]),
-            readonly_file_rights()
-        );
+            readonly_file_rights());
         if (rc != 0) {
             close(ruleset_fd);
             return rc;

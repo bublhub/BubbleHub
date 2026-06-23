@@ -1,9 +1,9 @@
 #define _GNU_SOURCE
 
+#include "ageos/sandbox.h"
 #include "ageos/limits.h"
 #include "ageos/log.h"
 #include "ageos/overfs.h"
-#include "ageos/sandbox.h"
 
 #include <errno.h>
 #include <ftw.h>
@@ -13,6 +13,7 @@
 #ifdef __linux__
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <linux/capability.h>
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -22,13 +23,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <linux/capability.h>
 #include <sys/ioctl.h>
 #include <sys/prctl.h>
-#include <sys/syscall.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
@@ -60,8 +60,7 @@ static void log_capability_state(const char *stage) {
             stage,
             strerror(errno),
             (unsigned int)getuid(),
-            (unsigned int)geteuid()
-        );
+            (unsigned int)geteuid());
         return;
     }
     AGEOS_LOG_DEBUG(
@@ -73,8 +72,7 @@ static void log_capability_state(const char *stage) {
         (unsigned int)getgid(),
         data[0].effective,
         data[0].permitted,
-        data[0].inheritable
-    );
+        data[0].inheritable);
 }
 
 static int apply_no_new_privs(void) {
@@ -105,8 +103,7 @@ static int grant_net_raw_capability(void) {
         AGEOS_LOG_ERROR(
             "failed to grant sandbox net raw capability",
             "step=ambient_raise err=%s",
-            strerror(errno)
-        );
+            strerror(errno));
         return -errno;
     }
     log_capability_state("after net raw grant");
@@ -139,7 +136,7 @@ static int apply_seccomp(int allow_network) {
         SCMP_SYS(newfstatat), SCMP_SYS(fstat), SCMP_SYS(lseek), SCMP_SYS(readlinkat),
         SCMP_SYS(access), SCMP_SYS(execve), SCMP_SYS(arch_prctl), SCMP_SYS(set_tid_address),
         SCMP_SYS(set_robust_list), SCMP_SYS(prlimit64), SCMP_SYS(getcwd),
-        SCMP_SYS(ioctl),SCMP_SYS(statx), SCMP_SYS(getuid),
+        SCMP_SYS(ioctl), SCMP_SYS(statx), SCMP_SYS(getuid),
         SCMP_SYS(geteuid), SCMP_SYS(getgid), SCMP_SYS(getegid),
         SCMP_SYS(getppid), SCMP_SYS(dup), SCMP_SYS(dup2),
         SCMP_SYS(dup3), SCMP_SYS(pipe), SCMP_SYS(pipe2),
@@ -157,7 +154,7 @@ static int apply_seccomp(int allow_network) {
         SCMP_SYS(rename), SCMP_SYS(mkdir), SCMP_SYS(mknod),
         SCMP_SYS(unlink), SCMP_SYS(unlinkat), SCMP_SYS(rmdir),
         SCMP_SYS(symlink), SCMP_SYS(symlinkat), SCMP_SYS(readlinkat),
-        SCMP_SYS(faccessat), SCMP_SYS(lstat), SCMP_SYS(capset), 
+        SCMP_SYS(faccessat), SCMP_SYS(lstat), SCMP_SYS(capset),
         SCMP_SYS(rt_sigtimedwait), SCMP_SYS(timer_create), SCMP_SYS(timer_settime),
         SCMP_SYS(timer_gettime), SCMP_SYS(timer_delete), SCMP_SYS(timer_getoverrun),
         SCMP_SYS(setuid), SCMP_SYS(setgid), SCMP_SYS(setreuid),
@@ -173,16 +170,14 @@ static int apply_seccomp(int allow_network) {
         SCMP_SYS(fgetxattr), SCMP_SYS(listxattr), SCMP_SYS(llistxattr),
         SCMP_SYS(flistxattr), SCMP_SYS(setxattr), SCMP_SYS(lsetxattr),
         SCMP_SYS(fsetxattr), SCMP_SYS(removexattr), SCMP_SYS(lremovexattr),
-        SCMP_SYS(fremovexattr)
-    };
+        SCMP_SYS(fremovexattr)};
     int network_syscalls[] = {
         SCMP_SYS(socket), SCMP_SYS(connect), SCMP_SYS(bind), SCMP_SYS(listen),
         SCMP_SYS(accept), SCMP_SYS(accept4), SCMP_SYS(sendto), SCMP_SYS(recvfrom),
         SCMP_SYS(sendmsg), SCMP_SYS(recvmsg), SCMP_SYS(getsockopt), SCMP_SYS(setsockopt),
         SCMP_SYS(shutdown), SCMP_SYS(poll), SCMP_SYS(ppoll), SCMP_SYS(fcntl),
         SCMP_SYS(getpeername), SCMP_SYS(getsockname), SCMP_SYS(pselect6),
-        SCMP_SYS(select)
-    };
+        SCMP_SYS(select)};
     size_t count = sizeof(syscalls) / sizeof(syscalls[0]);
     for (size_t i = 0; i < count; i++) {
         if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, syscalls[i], 0) != 0) {
@@ -201,8 +196,7 @@ static int apply_seccomp(int allow_network) {
         AGEOS_LOG_DEBUG(
             "sandbox seccomp policy",
             "allow_network=1 added_network_syscalls=%zu",
-            network_count
-        );
+            network_count);
     } else {
         AGEOS_LOG_DEBUG("sandbox seccomp policy", "allow_network=0 base_syscalls_only=1");
     }
@@ -617,8 +611,7 @@ static int seed_sandbox_home_profiles(const char *home_path) {
     int rc = write_text_file_if_missing(
         bashrc_path,
         "# AgeOS agent shell setup.\n",
-        0644
-    );
+        0644);
     if (rc != 0) {
         return rc;
     }
@@ -634,8 +627,7 @@ static int seed_sandbox_home_profiles(const char *home_path) {
         "if [ -f \"$HOME/.bashrc\" ]; then\n"
         "  . \"$HOME/.bashrc\"\n"
         "fi\n",
-        0644
-    );
+        0644);
 }
 
 static int relative_workdir(const char *workdir, const char *root_dir, char *buffer, size_t buffer_size) {
@@ -767,8 +759,7 @@ static int setup_sandbox_identity_files(
     const char *agent_name,
     const char *home_path,
     uid_t agent_uid,
-    gid_t agent_gid
-) {
+    gid_t agent_gid) {
     char passwd_path[PATH_MAX];
     char group_path[PATH_MAX];
     int written = snprintf(passwd_path, sizeof(passwd_path), "%s/passwd", agent_dir);
@@ -789,8 +780,7 @@ static int setup_sandbox_identity_files(
         agent_name,
         (unsigned int)agent_uid,
         (unsigned int)agent_gid,
-        home_path
-    );
+        home_path);
     if (written < 0 || (size_t)written >= sizeof(passwd_content)) {
         return -ENAMETOOLONG;
     }
@@ -799,8 +789,7 @@ static int setup_sandbox_identity_files(
         sizeof(group_content),
         "root:x:0:\n%s:x:%u:\n",
         agent_name,
-        (unsigned int)agent_gid
-    );
+        (unsigned int)agent_gid);
     if (written < 0 || (size_t)written >= sizeof(group_content)) {
         return -ENAMETOOLONG;
     }
@@ -839,8 +828,7 @@ static int setup_sandbox_home(
     uid_t agent_uid,
     gid_t agent_gid,
     char *workspace_cwd,
-    size_t workspace_cwd_size
-) {
+    size_t workspace_cwd_size) {
     char agent_name[128];
     sanitize_agent_name(getenv("AGEOS_AGENT_ID"), agent_name, sizeof(agent_name));
 
@@ -1010,8 +998,7 @@ static int setup_sandbox_runtime_env(
     uid_t agent_uid,
     gid_t agent_gid,
     char *workspace_cwd,
-    size_t workspace_cwd_size
-) {
+    size_t workspace_cwd_size) {
     if (writable_dir == NULL || writable_dir[0] == '\0') {
         return -EINVAL;
     }
@@ -1024,8 +1011,7 @@ static int setup_sandbox_runtime_env(
         agent_uid,
         agent_gid,
         workspace_cwd,
-        workspace_cwd_size
-    );
+        workspace_cwd_size);
     if (home_rc != 0) {
         return home_rc;
     }
@@ -1069,8 +1055,7 @@ static int setup_user_namespace(uid_t agent_uid, gid_t agent_gid, int allow_netw
         (unsigned int)gid,
         (unsigned int)agent_uid,
         (unsigned int)agent_gid,
-        allow_network
-    );
+        allow_network);
     if (unshare(CLONE_NEWUSER) != 0) {
         AGEOS_LOG_ERROR("failed to unshare user namespace", "err=%s", strerror(errno));
         return -errno;
@@ -1106,8 +1091,7 @@ static int setup_user_namespace(uid_t agent_uid, gid_t agent_gid, int allow_netw
         "uid=%u gid=%u allow_network=%d",
         (unsigned int)getuid(),
         (unsigned int)getgid(),
-        allow_network
-    );
+        allow_network);
     return 0;
 }
 
@@ -1122,15 +1106,13 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
         "binary=%s workdir=%s isolate_network=%d",
         cfg->binary,
         cfg->workdir,
-        cfg->isolate_network
-    );
+        cfg->isolate_network);
     AGEOS_LOG_DEBUG(
         "sandbox resource limits",
         "memory_max=%llu cpu_percent=%u niceness=%d",
         (unsigned long long)cfg->memory_max,
         cfg->cpu_percent,
-        cfg->resource_niceness
-    );
+        cfg->resource_niceness);
     uid_t host_uid = getuid();
     gid_t host_gid = getgid();
     uid_t agent_uid = sandbox_agent_uid(host_uid);
@@ -1141,8 +1123,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
         (unsigned int)host_uid,
         (unsigned int)host_gid,
         (unsigned int)agent_uid,
-        (unsigned int)agent_gid
-    );
+        (unsigned int)agent_gid);
     char sandbox_root_template[] = "/tmp/ageos-root-XXXXXX";
     char *sandbox_root = mkdtemp(sandbox_root_template);
     if (sandbox_root == NULL) {
@@ -1160,8 +1141,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
         inference_proxy_enabled,
         cfg->inference_host != NULL ? cfg->inference_host : "",
         cfg->inference_port,
-        cfg->sandbox_inference_port
-    );
+        cfg->sandbox_inference_port);
     int inference_control[2] = {-1, -1};
     pid_t host_proxy_pid = -1;
     if (inference_proxy_enabled) {
@@ -1229,15 +1209,13 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
             "unsharing sandbox namespaces",
             "flags=0x%x isolate_network=%d",
             unshare_flags,
-            cfg->isolate_network
-        );
+            cfg->isolate_network);
         if (unshare(unshare_flags) != 0) {
             AGEOS_LOG_ERROR(
                 "failed to create sandbox namespaces",
                 "flags=0x%x err=%s",
                 unshare_flags,
-                strerror(errno)
-            );
+                strerror(errno));
             _exit(126);
         }
         AGEOS_LOG_DEBUG("sandbox namespaces ready", "isolate_network=%d", cfg->isolate_network);
@@ -1274,8 +1252,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
             writable_dir,
             sandbox_root,
             target_root,
-            cfg->workdir
-        );
+            cfg->workdir);
         int env_rc = setup_sandbox_runtime_env(
             writable_dir,
             sandbox_root,
@@ -1286,8 +1263,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
             agent_uid,
             agent_gid,
             workspace_cwd,
-            sizeof(workspace_cwd)
-        );
+            sizeof(workspace_cwd));
         if (env_rc != 0) {
             AGEOS_LOG_ERROR("failed to prepare sandbox runtime env", "%s", strerror(-env_rc));
             _exit(126);
@@ -1302,8 +1278,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
             "applied sandbox filesystem policy",
             "allow_dns=%d writable_dir=%s",
             !cfg->isolate_network,
-            policy_writable_dir
-        );
+            policy_writable_dir);
         int chroot_rc = enter_sandbox_root(target_root, workspace_cwd);
         if (chroot_rc != 0) {
             AGEOS_LOG_ERROR("failed to enter sandbox root", "%s", strerror(-chroot_rc));
@@ -1321,8 +1296,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
             AGEOS_LOG_DEBUG(
                 "applying sandbox seccomp policy",
                 "allow_network=%d",
-                !cfg->isolate_network
-            );
+                !cfg->isolate_network);
             int seccomp_rc = apply_seccomp(!cfg->isolate_network);
             if (seccomp_rc != 0) {
                 AGEOS_LOG_ERROR("failed to apply seccomp policy", "%s", strerror(-seccomp_rc));
@@ -1332,8 +1306,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
             AGEOS_LOG_DEBUG(
                 "skipping sandbox seccomp policy",
                 "AGEOS_ENABLE_SECCOMP=%s",
-                seccomp_env != NULL ? seccomp_env : "(unset)"
-            );
+                seccomp_env != NULL ? seccomp_env : "(unset)");
         }
         AGEOS_LOG_DEBUG("exec sandbox binary", "binary=%s", cfg->binary);
         execv(cfg->binary, cfg->argv);
@@ -1367,8 +1340,7 @@ int ageos_sandbox_run(const ageos_sandbox_config *cfg) {
             "sandbox child terminated by signal",
             "signal=%d (%s)",
             WTERMSIG(status),
-            strsignal(WTERMSIG(status))
-        );
+            strsignal(WTERMSIG(status)));
         return 128 + WTERMSIG(status);
     }
     return status;

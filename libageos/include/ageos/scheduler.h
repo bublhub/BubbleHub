@@ -13,16 +13,14 @@ int ageos_scheduler_admit_model_job(
     char *state,
     size_t state_size,
     char *reason,
-    size_t reason_size
-);
+    size_t reason_size);
 int ageos_scheduler_configure_limits(double ram_limit_gb, double vram_limit_gb);
 int ageos_scheduler_register_agent(
     const char *agent_id,
     int64_t pid,
     const char *binary,
     int niceness,
-    const char *specialty
-);
+    const char *specialty);
 int ageos_scheduler_deregister_agent(const char *agent_id);
 int ageos_scheduler_mark_model_loaded(
     const char *name,
@@ -31,8 +29,7 @@ int ageos_scheduler_mark_model_loaded(
     double ram_gb,
     double vram_gb,
     int64_t pid,
-    int port
-);
+    int port);
 int ageos_scheduler_mark_model_unloaded(const char *name);
 int ageos_scheduler_evict_model(const char *name);
 int ageos_scheduler_add_queue_item(
@@ -41,8 +38,7 @@ int ageos_scheduler_add_queue_item(
     const char *specialty,
     const char *model_name,
     int niceness,
-    const char *reason
-);
+    const char *reason);
 char *ageos_scheduler_snapshot_json(void);
 void ageos_scheduler_free_string(char *value);
 char *ageos_inference_chat_json(const char *request_json);

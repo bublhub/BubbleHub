@@ -74,8 +74,7 @@ int main(int argc, char **argv) {
         AGEOS_LOG_ERROR("missing sandbox command", "");
         AGEOS_LOG_INFO(
             "ageos-sandbox usage",
-            "[--memory 2G] [--cpu 50] [--workdir DIR] [--root-dir DIR] [--rootfs-dir DIR] [--overlay-upper-dir DIR] [--overlay-work-dir DIR] [--isolate-network] [--log-level LEVEL] -- COMMAND [ARGS...]"
-        );
+            "[--memory 2G] [--cpu 50] [--workdir DIR] [--root-dir DIR] [--rootfs-dir DIR] [--overlay-upper-dir DIR] [--overlay-work-dir DIR] [--isolate-network] [--log-level LEVEL] -- COMMAND [ARGS...]");
         return 2;
     }
     cfg.binary = argv[i];

@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 
-#include "ageos/log.h"
 #include "ageos/overfs.h"
+#include "ageos/log.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -296,8 +296,7 @@ static int setup_proc_mount(const char *new_root) {
             "host denied readonly remount for overfs host proc",
             "target=%s err=%s",
             proc_path,
-            strerror(errno)
-        );
+            strerror(errno));
     }
     return 0;
 }
@@ -353,16 +352,14 @@ static int setup_overlay_root(const ageos_sandbox_config *cfg, const char *new_r
         new_root,
         cfg->rootfs_dir != NULL ? cfg->rootfs_dir : "",
         cfg->overlay_upper_dir != NULL ? cfg->overlay_upper_dir : "",
-        cfg->overlay_work_dir != NULL ? cfg->overlay_work_dir : ""
-    );
+        cfg->overlay_work_dir != NULL ? cfg->overlay_work_dir : "");
     if (cfg->overlay_upper_dir == NULL || cfg->overlay_upper_dir[0] == '\0' ||
         cfg->overlay_work_dir == NULL || cfg->overlay_work_dir[0] == '\0') {
         AGEOS_LOG_ERROR(
             "invalid AgeOS overfs overlay paths",
             "upper=%s work=%s",
             cfg->overlay_upper_dir != NULL ? cfg->overlay_upper_dir : "(null)",
-            cfg->overlay_work_dir != NULL ? cfg->overlay_work_dir : "(null)"
-        );
+            cfg->overlay_work_dir != NULL ? cfg->overlay_work_dir : "(null)");
         return -EINVAL;
     }
     int rc = ageos_overfs_mkdir_p(cfg->overlay_upper_dir, 0700);
@@ -384,8 +381,7 @@ static int setup_overlay_root(const ageos_sandbox_config *cfg, const char *new_r
         "lowerdir=%s,upperdir=%s,workdir=%s",
         cfg->rootfs_dir,
         cfg->overlay_upper_dir,
-        cfg->overlay_work_dir
-    );
+        cfg->overlay_work_dir);
     if (written < 0 || (size_t)written >= options_len) {
         free(options);
         return -ENAMETOOLONG;
@@ -399,8 +395,7 @@ static int setup_overlay_root(const ageos_sandbox_config *cfg, const char *new_r
             cfg->rootfs_dir,
             cfg->overlay_upper_dir,
             cfg->overlay_work_dir,
-            strerror(err)
-        );
+            strerror(err));
         free(options);
         return -err;
     }
