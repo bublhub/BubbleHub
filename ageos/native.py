@@ -110,7 +110,7 @@ def _sandbox_helper() -> str:
     if found:
         return found
     default = Path("/usr/local/bin/ageos-sandbox")
-    if default.exists():
+    if default.is_file() and os.access(default, os.X_OK):
         return str(default)
     raise LibAgeosError("ageos-sandbox helper is required for sandbox execution. Run ./scripts/build.sh.")
 

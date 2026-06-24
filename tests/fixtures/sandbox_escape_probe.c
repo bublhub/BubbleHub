@@ -367,14 +367,17 @@ static void run_fs_links(const char *workspace, const char *host_canary) {
     if (join_path(path, sizeof(path), workspace, "canary-hardlink-c") == 0) {
         record_if_success("syscall hardlink host canary into workspace", hardlink_path(host_canary, path));
     }
-    if (join_path(path, sizeof(path), workspace, "rename-source-c") == 0 &&
-        join_path(path2, sizeof(path2), workspace, "rename-source-c") == 0 &&
-        create_file(path) != 0) {
+    if (join_path(path, sizeof(path), workspace, "rename-source-c") != 0) {
+        fprintf(stderr, "- build C rename source path\n");
+        failures++;
+        return;
+    }
+    if (create_file(path) != 0) {
         fprintf(stderr, "- create C rename source\n");
         failures++;
-    } else {
-        record_if_success("syscall rename workspace file over host canary", rename_path(path2, host_canary));
+        return;
     }
+    record_if_success("syscall rename workspace file over host canary", rename_path(path, host_canary));
 }
 
 static void run_protected_writes(void) {
@@ -489,11 +492,13 @@ int main(int argc, char **argv) {
 
     sanity_check_workspace(workspace);
     strip_escape_env();
-    fprintf(stderr, "C sandbox escape attempts unexpectedly succeeded (%s):\n", category);
     int rc = run_category(category, workspace, host_canary, expect_network_blocked);
 
     if (rc == 0 && failures == 0) {
         return 0;
+    }
+    if (rc != 2) {
+        fprintf(stderr, "C sandbox escape attempts unexpectedly succeeded (%s):\n", category);
     }
     return rc == 2 ? 2 : 1;
 }
