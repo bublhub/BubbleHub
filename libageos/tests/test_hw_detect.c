@@ -25,7 +25,7 @@ static FILE *open_buffered_stream(const char *contents) {
     return fp;
 }
 
-FILE *__wrap_fopen(const char *path, const char *mode) {
+FILE *ageos_test_fopen(const char *path, const char *mode) {
     (void)mode;
     if (strcmp(path, "/proc/meminfo") != 0) {
         return NULL;
@@ -39,7 +39,7 @@ FILE *__wrap_fopen(const char *path, const char *mode) {
     return NULL;
 }
 
-long __wrap_sysconf(int name) {
+long ageos_test_sysconf(int name) {
     if (name == _SC_PHYS_PAGES) {
         return g_pages;
     }
@@ -49,7 +49,7 @@ long __wrap_sysconf(int name) {
     return -1;
 }
 
-FILE *__wrap_popen(const char *command, const char *mode) {
+FILE *ageos_test_popen(const char *command, const char *mode) {
     (void)command;
     (void)mode;
     if (g_popen_fail) {
@@ -58,7 +58,7 @@ FILE *__wrap_popen(const char *command, const char *mode) {
     return open_buffered_stream(g_popen_output);
 }
 
-int __wrap_pclose(FILE *fp) {
+int ageos_test_pclose(FILE *fp) {
     return fclose(fp);
 }
 

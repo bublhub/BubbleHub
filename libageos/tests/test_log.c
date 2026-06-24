@@ -68,6 +68,7 @@ int main(void) {
     failures += expect_contains("debug line", buffer, "DEBUG test_log.c:42 debug-text:value");
 
     setenv("AGEOS_LOG_LEVEL", "info", 1);
+    ageos_log_init();
     ageos_log_set_file(path2);
     ageos_log_write(AGEOS_LOG_LEVEL_INFO, "/tmp/src/test_log.c", 7, "info-text", "");
     ageos_log_write(AGEOS_LOG_LEVEL_DEBUG, "/tmp/src/test_log.c", 8, "hidden-debug", "");
@@ -83,6 +84,8 @@ int main(void) {
     }
 
     setenv("AGEOS_SANDBOX", "1", 1);
+    setenv("AGEOS_AGENT_HOME", allowed_dir, 1);
+    setenv("AGEOS_WORKSPACE", allowed_dir, 1);
     setenv("HOME", allowed_dir, 1);
     setenv("TMPDIR", allowed_dir, 1);
     ageos_log_set_file(blocked_path);
@@ -92,7 +95,9 @@ int main(void) {
         failures++;
     }
 
+    ageos_log_set_file(NULL);
     ageos_log_set_file(allowed_path);
+    ageos_log_init();
     ageos_log_set_level("info");
     ageos_log_write(AGEOS_LOG_LEVEL_ERROR, "/tmp/src/test_log.c", 10, "allowed", "");
     ageos_log_set_file(NULL);

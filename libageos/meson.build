@@ -39,11 +39,11 @@ native_tests = [
   {
     'name': 'test-hw-detect',
     'sources': ['tests/test_hw_detect.c', 'hw_detect.c'],
-    'link_args': [
-      '-Wl,--wrap=fopen',
-      '-Wl,--wrap=sysconf',
-      '-Wl,--wrap=popen',
-      '-Wl,--wrap=pclose',
+    'c_args': [
+      '-Dfopen=ageos_test_fopen',
+      '-Dsysconf=ageos_test_sysconf',
+      '-Dpopen=ageos_test_popen',
+      '-Dpclose=ageos_test_pclose',
     ],
   },
 ]
@@ -53,7 +53,7 @@ foreach native_test : native_tests
     native_test['name'],
     native_test['sources'],
     include_directories: include_dir,
-    link_args: native_test.get('link_args', []),
+    c_args: native_test.get('c_args', []),
   )
   test(native_test['name'], exe)
 endforeach
