@@ -49,7 +49,6 @@ ageos = ["config/*.yaml"]
   "libageos/ageos_sandbox_main.c",
   "libageos/hw_detect.c",
   "libageos/http_proxy.c",
-  "libageos/http_proxy_test.c",
   "libageos/landlock.c",
   "libageos/limits.c",
   "libageos/log.c",
@@ -57,6 +56,15 @@ ageos = ["config/*.yaml"]
   "libageos/overfs.c",
   "libageos/scheduler.c",
   "libageos/sandbox.c",
+]
+"share/ageos/libageos/tests" = [
+  "libageos/tests/common.h",
+  "libageos/tests/core_test.c",
+  "libageos/tests/http_proxy_test.c",
+  "libageos/tests/log_test.c",
+  "libageos/tests/meson.build",
+  "libageos/tests/overfs_test.c",
+  "libageos/tests/scheduler_test.c",
 ]
 "share/ageos/libageos/include/ageos" = [
   "libageos/include/ageos/hw.h",
