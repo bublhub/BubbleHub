@@ -31,10 +31,14 @@ def _integration_enabled() -> bool:
 def _integration_env(tmp_path: Path) -> dict[str, str]:
     env = os.environ.copy()
     env.pop("AGEOS_API_BASE_URL", None)
-    env.setdefault("AGEOS_CACHE", str(tmp_path / "ageos-cache"))
+    cache = env.get("AGEOS_CACHE", str(tmp_path / "ageos-cache"))
+    env["AGEOS_CACHE"] = cache
+    env["AGEOS_MODELS_CONFIG"] = env.get("AGEOS_MODELS_CONFIG", f"{cache}/ci-models.yaml")
+    env["HOME"] = str(tmp_path / "home")
+    env["AGEOS_SKIP_MODEL_SETUP"] = "1"
     env.setdefault(
         "AGEOS_INTEGRATION_WORKSPACE_DIR",
-        str(Path(env["AGEOS_CACHE"]) / "integration-workspaces"),
+        str(Path(cache) / "integration-workspaces"),
     )
     env.setdefault("AGEOS_SCHEDULER_STATE", str(tmp_path / "scheduler.state"))
     env.setdefault("AGEOS_STATE_DIR", str(tmp_path / "state"))
@@ -42,6 +46,8 @@ def _integration_env(tmp_path: Path) -> dict[str, str]:
     env.setdefault("AGEOS_MAX_OUTPUT_TOKENS", "32")
     env.setdefault("NO_PROXY", "127.0.0.1,localhost")
     env.setdefault("no_proxy", "127.0.0.1,localhost")
+    Path(env["HOME"]).mkdir(parents=True, exist_ok=True)
+    Path(cache).mkdir(parents=True, exist_ok=True)
     return env
 
 
@@ -69,6 +75,7 @@ def integration_workspace_factory(integration_env: dict[str, str]) -> Iterator[C
 def integration_env(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
     _require_integration_runtime()
     env = _integration_env(tmp_path_factory.mktemp("ageos-integration"))
+    _run(["bash", str(ROOT / "scripts/ci/write-ci-model-config.sh")], env=env, timeout=30)
     _run(
         ["ageos", "prompt", "--text", "Reply with ok.", "--speciality", "default-instruct"],
         env=env,
