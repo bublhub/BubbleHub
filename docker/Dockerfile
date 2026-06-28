@@ -120,7 +120,7 @@ COPY . /src
 COPY --from=tauri-app /out/ageos-control-center /usr/local/bin/ageos-control-center
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    AGEOS_INSTALL_APP=1 AGEOS_SKIP_TAURI=1 SUDO= ./scripts/build.sh && \
+    AGEOS_INSTALL_APP=1 AGEOS_SKIP_TAURI=1 AGEOS_SKIP_MODEL_SETUP=1 SUDO= ./scripts/build.sh && \
     ageos --help && \
     command -v ageos-control-center
 

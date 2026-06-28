@@ -22,3 +22,5 @@ examples/openclaw/openclaw/
 examples/**/.ageos/
 
 docker-compose*.yml
+build/
+.ageos-install-app-choice

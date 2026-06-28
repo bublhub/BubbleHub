@@ -295,7 +295,7 @@ def test_sandbox_rejects_host_log_file(tmp_path: Path, monkeypatch: pytest.Monke
     monkeypatch.setenv("AGEOS_AGENT_HOME", "/home/agt-test")
     monkeypatch.setenv("AGEOS_WORKSPACE", "/home/agt-test/workspace")
     monkeypatch.setenv("TMPDIR", "/home/agt-test/tmp")
-    host_log = tmp_path / "host.log"
+    host_log = tmp_path.parent / "outside-sandbox" / "host.log"
     ageos_log.configure_logging("info", host_log)
     ageos_log.log_info("should use stderr")
 
