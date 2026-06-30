@@ -1,6 +1,6 @@
-# libageos Architecture
+# libbubblehub Architecture
 
-`libageos` is the native runtime for AgeOS scheduling, sandboxing, and local model hosting. It owns backend process lifecycle, warm-model cache state, admission decisions, scheduler state, and sandbox enforcement.
+`libbubblehub` is the native runtime for BubbleHub scheduling, sandboxing, and local model hosting. It owns backend process lifecycle, warm-model cache state, admission decisions, scheduler state, and sandbox enforcement.
 
 ## Architecture
 
@@ -13,13 +13,13 @@ The native layer has three main surfaces:
 Call flow for model hosting:
 
 1. A caller passes a JSON request containing specialty, selected model metadata, model path, messages, niceness, and token limits.
-2. `ageos_inference_chat_json()` parses the request and checks the shared scheduler state.
-3. If a healthy warm model exists, `libageos` increments the model refcount and reuses its pid/port.
-4. If no healthy model exists, `libageos` admits the job and starts the configured native backend process.
-5. `libageos` sends the OpenAI-shaped chat request to the backend and returns JSON to the caller.
+2. `bubblehub_inference_chat_json()` parses the request and checks the shared scheduler state.
+3. If a healthy warm model exists, `libbubblehub` increments the model refcount and reuses its pid/port.
+4. If no healthy model exists, `libbubblehub` admits the job and starts the configured native backend process.
+5. `libbubblehub` sends the OpenAI-shaped chat request to the backend and returns JSON to the caller.
 6. The model refcount is released, but the model process stays warm until explicit eviction or scheduler pressure removes it.
 
-Sandboxed agents receive an inference-only loopback path to the host AgeOS endpoint. Python code running inside the sandbox must use that forwarded endpoint instead of loading the native shared library directly.
+Sandboxed agents receive an inference-only loopback path to the host BubbleHub endpoint. Python code running inside the sandbox must use that forwarded endpoint instead of loading the native shared library directly.
 
 ## Hardening Policy
 
@@ -27,8 +27,8 @@ Hardening is enforced by the native sandbox runtime.
 
 - Filesystem exposure must be explicit. A host `--root-dir` is mounted into the sandbox workspace view, not exposed as a host path in `$PWD`.
 - The root filesystem lowerdir must stay read-only. Agent writes outside the workspace must land in the per-agent overlay upperdir.
-- Sandbox `$PWD`, `$HOME`, `$TMPDIR`, `$AGEOS_WORKSPACE`, agent identity, `PATH`, locale, terminal type, and shell prompt must be set by the native sandbox setup.
-- Persistent agent homes must live under controlled `.ageos/agents/agt-*` directories and must not follow symlinks.
+- Sandbox `$PWD`, `$HOME`, `$TMPDIR`, `$BUBBLEHUB_WORKSPACE`, agent identity, `PATH`, locale, terminal type, and shell prompt must be set by the native sandbox setup.
+- Persistent agent homes must live under controlled `.bubblehub/agents/agt-*` directories and must not follow symlinks.
 - Agent homes should include standard shell profile files when first created so common installer scripts can persist user setup without host-specific exceptions.
 - Network isolation is default for agents. Sandboxed agents only receive the local inference endpoint when `isolate_network` is enabled, and may receive general outbound network access only when the caller explicitly disables network isolation.
 - Resource limits such as memory and CPU are applied by native sandbox setup.
@@ -36,7 +36,7 @@ Hardening is enforced by the native sandbox runtime.
 
 ## LLM Hosting Policy
 
-`libageos` decides whether a model is loaded, reused, evicted, or started.
+`libbubblehub` decides whether a model is loaded, reused, evicted, or started.
 
 - Backend health validation, pid/port stability, refcount updates, and scheduler model records are native responsibilities.
 - LLM hosting remains backend-agnostic at the API boundary: callers pass model metadata, while native code chooses the backend start path based on the model backend field.
@@ -46,31 +46,31 @@ Hardening is enforced by the native sandbox runtime.
 
 ## File Responsibilities
 
-### `libageos/meson.build`
+### `libbubblehub/meson.build`
 
 Build definition for the native shared library and sandbox executable. Add new native source files here when responsibilities are split out of large C modules.
 
-### `libageos/hw_detect.c`
+### `libbubblehub/hw_detect.c`
 
 Detects host RAM, VRAM, free VRAM, and GPU characteristics for scheduler and model selection. This informs admission policy but does not start models.
 
-### `libageos/include/ageos/hw.h`
+### `libbubblehub/include/bubblehub/hw.h`
 
 Public C declarations for hardware detection functions exported by the shared library.
 
-### `libageos/limits.c`
+### `libbubblehub/limits.c`
 
 Native helpers for resource limit handling. Keep low-level limit parsing or enforcement helpers here when they are shared outside the sandbox implementation.
 
-### `libageos/include/ageos/limits.h`
+### `libbubblehub/include/bubblehub/limits.h`
 
 Public declarations for native limit helpers.
 
-### `libageos/landlock.c`
+### `libbubblehub/landlock.c`
 
 Linux Landlock setup and filesystem access restriction helpers. This file is part of the sandbox hardening boundary and should fail closed if rules cannot be applied safely.
 
-### `libageos/sandbox.c`
+### `libbubblehub/sandbox.c`
 
 Native sandbox runtime. It sets up the agent execution environment, persistent home/workspace mapping, user identity, clean environment variables, writable paths, network policy, resource limits, and the final exec.
 
@@ -81,15 +81,15 @@ Hardening policy for this file:
 - Reject unsafe persistent paths and symlink escapes.
 - Keep inference-only networking separate from explicit general outbound networking.
 
-### `libageos/overfs.c`
+### `libbubblehub/overfs.c`
 
-Overlay and mount setup for sandbox filesystems. It mounts the Ubuntu rootfs lowerdir with the per-agent overlay upper/work directories, binds the workspace and AgeOS runtime paths, prepares `/dev`, `/proc`, `/tmp`, and other filesystem views, and logs mount decisions for debugging.
+Overlay and mount setup for sandbox filesystems. It mounts the Ubuntu rootfs lowerdir with the per-agent overlay upper/work directories, binds the workspace and BubbleHub runtime paths, prepares `/dev`, `/proc`, `/tmp`, and other filesystem views, and logs mount decisions for debugging.
 
-### `libageos/include/ageos/sandbox.h`
+### `libbubblehub/include/bubblehub/sandbox.h`
 
-Public sandbox configuration struct and `ageos_sandbox_run()` declaration. Native code interprets the requested policy and enforces the sandbox.
+Public sandbox configuration struct and `bubblehub_sandbox_run()` declaration. Native code interprets the requested policy and enforces the sandbox.
 
-### `libageos/scheduler.c`
+### `libbubblehub/scheduler.c`
 
 Shared scheduler state and native inference core. It manages state file locking, agents, resource limits, queue entries, model records, model admission, model eviction, warm-model lookup, backend process spawning, backend health checks, chat forwarding, and JSON snapshots.
 
@@ -102,24 +102,24 @@ LLM hosting policy for this file:
 - Evict unhealthy backend records before starting a replacement.
 - Start supported backends natively, including `llama-server` and vLLM.
 
-### `libageos/include/ageos/scheduler.h`
+### `libbubblehub/include/bubblehub/scheduler.h`
 
 Public scheduler and inference API. This is the native ABI for language bindings, command wrappers, and service processes. New inference operations should be added here as native JSON-in/JSON-out APIs.
 
-### `libageos/ageos_sandbox_main.c`
+### `libbubblehub/bubblehub_sandbox_main.c`
 
 Small executable entrypoint for running the native sandbox from a process boundary. Keep policy in `sandbox.c`; this file should stay a thin command wrapper.
 
 ## Native Unit Tests
 
-C unit tests live under `libageos/tests/`. Each module has a dedicated test binary that links against the built `libageos.so` rather than recompiling library sources.
+C unit tests live under `libbubblehub/tests/`. Each module has a dedicated test binary that links against the built `libbubblehub.so` rather than recompiling library sources.
 
 Run them with Meson:
 
 ```bash
-meson setup libageos/build libageos --prefix=/usr/local
-meson compile -C libageos/build
-meson test -C libageos/build --print-errorlogs
+meson setup libbubblehub/build libbubblehub --prefix=/usr/local
+meson compile -C libbubblehub/build
+meson test -C libbubblehub/build --print-errorlogs
 ```
 
-Current coverage includes access policy, HTTP proxy, logging, hardware detection, cgroup limits, overlay/mount helpers, Landlock, scheduler state, and sandbox config validation. Full sandbox execution and the `ageos-sandbox` CLI wrapper are covered by Python integration tests under `tests/`.
+Current coverage includes access policy, HTTP proxy, logging, hardware detection, cgroup limits, overlay/mount helpers, Landlock, scheduler state, and sandbox config validation. Full sandbox execution and the `bubblehub-sandbox` CLI wrapper are covered by Python integration tests under `tests/`.
