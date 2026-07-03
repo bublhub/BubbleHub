@@ -80,8 +80,10 @@ def test_native_inference_reuses_warm_vllm_backend(tmp_path: Path, monkeypatch: 
     }
 
     try:
-        responses = [client.inference_chat(request) for _ in range(5)]
-        response = responses[0]
+        response = client.inference_chat(request)
+        responses = [response]
+        for _ in range(4):
+            responses.append(client.inference_chat(request))
 
         assert [item["content"] for item in responses] == ["fake-vllm"] * 5
         assert {item["pid"] for item in responses} == {response["pid"]}
