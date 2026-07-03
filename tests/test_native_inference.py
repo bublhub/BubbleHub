@@ -39,8 +39,10 @@ def test_native_inference_reuses_warm_backend(tmp_path: Path, monkeypatch: pytes
     }
 
     try:
-        responses = [client.inference_chat(request) for _ in range(5)]
-        first = responses[0]
+        first = client.inference_chat(request)
+        responses = [first]
+        for _ in range(4):
+            responses.append(client.inference_chat(request))
 
         assert [response["content"] for response in responses] == ["fake-native"] * 5
         assert {response["pid"] for response in responses} == {first["pid"]}
