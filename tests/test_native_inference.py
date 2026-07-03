@@ -39,13 +39,12 @@ def test_native_inference_reuses_warm_backend(tmp_path: Path, monkeypatch: pytes
     }
 
     try:
-        first = client.inference_chat(request)
-        second = client.inference_chat(request)
+        responses = [client.inference_chat(request) for _ in range(5)]
+        first = responses[0]
 
-        assert first["content"] == "fake-native"
-        assert second["content"] == "fake-native"
-        assert first["pid"] == second["pid"]
-        assert first["port"] == second["port"]
+        assert [response["content"] for response in responses] == ["fake-native"] * 5
+        assert {response["pid"] for response in responses} == {first["pid"]}
+        assert {response["port"] for response in responses} == {first["port"]}
         assert starts.read_text(encoding="utf-8").count("start ") == 1
         snapshot = client.status_snapshot()
         model = next(item for item in snapshot["models"] if item["name"] == "native-cache-test")
@@ -58,7 +57,7 @@ def test_native_inference_reuses_warm_backend(tmp_path: Path, monkeypatch: pytes
             _wait_for_process_exit(int(first["pid"]))
 
 
-def test_native_inference_starts_vllm_backend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_native_inference_reuses_warm_vllm_backend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     starts = tmp_path / "vllm-starts.log"
     _write_fake_vllm_python(tmp_path / "fake-python", starts)
     monkeypatch.setenv("BUBBLEHUB_PYTHON", str(tmp_path / "fake-python"))
@@ -79,9 +78,12 @@ def test_native_inference_starts_vllm_backend(tmp_path: Path, monkeypatch: pytes
     }
 
     try:
-        response = client.inference_chat(request)
+        responses = [client.inference_chat(request) for _ in range(5)]
+        response = responses[0]
 
-        assert response["content"] == "fake-vllm"
+        assert [item["content"] for item in responses] == ["fake-vllm"] * 5
+        assert {item["pid"] for item in responses} == {response["pid"]}
+        assert {item["port"] for item in responses} == {response["port"]}
         assert starts.read_text(encoding="utf-8").count("start native-vllm-test") == 1
     finally:
         client.evict_model("native-vllm-test")
@@ -142,6 +144,35 @@ def test_entrypoints_share_native_model_cache(tmp_path: Path, monkeypatch: pytes
     finally:
         server.shutdown()
         server.server_close()
+        client.evict_model("native-cache-test")
+        if pid:
+            _wait_for_process_exit(pid)
+
+
+def test_engine_session_reuses_backend_across_multiple_chats(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    starts = tmp_path / "starts.log"
+    _write_fake_llama_server(tmp_path / "llama-server", starts)
+    _write_models_config(tmp_path / "models.yaml")
+    _write_cached_model(tmp_path)
+    monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("BUBBLEHUB_SCHEDULER_STATE", str(tmp_path / "scheduler.state"))
+    monkeypatch.setenv("BUBBLEHUB_MODELS_CONFIG", str(tmp_path / "models.yaml"))
+    monkeypatch.setenv("BUBBLEHUB_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("BUBBLEHUB_MAX_OUTPUT_TOKENS", "8")
+
+    client = SchedulerClient.local()
+    pid = 0
+    try:
+        with EngineSession("default-instruct") as session:
+            responses = [session.chat([{"role": "user", "content": f"prompt-{index}"}]) for index in range(5)]
+
+        assert responses == ["fake-native"] * 5
+        snapshot = client.status_snapshot()
+        model = next(item for item in snapshot["models"] if item["name"] == "native-cache-test")
+        pid = int(model["pid"])
+        assert model["refcount"] == 0
+        assert starts.read_text(encoding="utf-8").count("start ") == 1
+    finally:
         client.evict_model("native-cache-test")
         if pid:
             _wait_for_process_exit(pid)
