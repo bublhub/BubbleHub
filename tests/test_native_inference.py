@@ -164,15 +164,18 @@ def test_engine_session_reuses_backend_across_multiple_chats(tmp_path: Path, mon
 
     client = SchedulerClient.local()
     pid = 0
+    responses = []
     try:
         with EngineSession("default-instruct") as session:
-            responses = [session.chat([{"role": "user", "content": f"prompt-{index}"}]) for index in range(5)]
+            for index in range(5):
+                responses.append(session.chat([{"role": "user", "content": f"prompt-{index}"}]))
+                snapshot = client.status_snapshot()
+                model = next(item for item in snapshot["models"] if item["name"] == "native-cache-test")
+                if not pid:
+                    pid = int(model["pid"])
+                assert model["refcount"] == 0
 
         assert responses == ["fake-native"] * 5
-        snapshot = client.status_snapshot()
-        model = next(item for item in snapshot["models"] if item["name"] == "native-cache-test")
-        pid = int(model["pid"])
-        assert model["refcount"] == 0
         assert starts.read_text(encoding="utf-8").count("start ") == 1
     finally:
         client.evict_model("native-cache-test")
