@@ -148,10 +148,7 @@ def test_inference_daemon_bootstrap_runs_under_isolated_python(tmp_path: Path) -
     (tmp_path / "bubblehub" / "__init__.py").write_text("", encoding="utf-8")
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "inference_daemon.py").write_text(
-        "from pathlib import Path\n"
-        "def main():\n"
-        f"    Path({str(marker)!r}).write_text('ok', encoding='utf-8')\n"
-        "    return 0\n",
+        "from pathlib import Path\n" "def main():\n" f"    Path({str(marker)!r}).write_text('ok', encoding='utf-8')\n" "    return 0\n",
         encoding="utf-8",
     )
     env = os.environ.copy()

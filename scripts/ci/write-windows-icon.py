@@ -9,7 +9,6 @@ from binascii import crc32
 from pathlib import Path
 from shutil import which
 
-
 ROOT = Path(__file__).resolve().parents[2]
 LOGO = ROOT / "assets" / "bubblehub-logo.svg"
 
@@ -101,6 +100,7 @@ def render_png(size: int, tmp_dir: Path) -> bytes:
     else:
         try:
             import cairosvg
+
             cairosvg.svg2png(url=str(LOGO), write_to=str(output), output_width=size, output_height=size)
         except Exception:
             return fallback_png(size)

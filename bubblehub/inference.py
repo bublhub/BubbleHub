@@ -14,7 +14,6 @@ import yaml
 
 from bubblehub.log import log_debug, log_error, log_info
 
-
 _BUBBLEHUB_MODULE_BOOTSTRAP = (
     "import os, sys; "
     "from pathlib import Path; "
