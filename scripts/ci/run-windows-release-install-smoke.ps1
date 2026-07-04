@@ -52,34 +52,60 @@ function Get-PythonCommand {
         throw "BUBBLEHUB_PYTHON is set to '$($env:BUBBLEHUB_PYTHON)' but it cannot run Python."
     }
 
-    foreach ($Name in @("python", "python3")) {
-        $Command = Get-Command $Name -ErrorAction SilentlyContinue
-        if ($Command) {
-            $Candidate = @($Command.Source)
-            if (Test-PythonExecutable $Candidate) {
-                Write-Output $Candidate -NoEnumerate
-                return
-            }
-        }
-    }
-
+    $CandidatePaths = @()
     $ToolRoots = @(
         $env:pythonLocation,
         $env:PYTHON_HOME,
         $env:RUNNER_TOOL_CACHE
     ) | Where-Object { $_ }
+    foreach ($WorkspaceRoot in @($env:RUNNER_WORKSPACE, $env:GITHUB_WORKSPACE) | Where-Object { $_ }) {
+        $WorkRoot = Split-Path $WorkspaceRoot -Parent
+        if ((Split-Path $WorkRoot -Leaf) -ne "_work") {
+            $WorkRoot = Split-Path $WorkRoot -Parent
+        }
+        if ($WorkRoot) {
+            $ToolRoots += Join-Path $WorkRoot "_tool"
+        }
+    }
+
     foreach ($Root in $ToolRoots) {
-        $Candidates = @(
-            Join-Path $Root "python.exe"
-            Join-Path $Root "python3.exe"
-            Join-Path $Root "x64/python.exe"
-            Join-Path $Root "x86/python.exe"
+        $CandidatePaths += @(
+            (Join-Path $Root "python.exe")
+            (Join-Path $Root "python3.exe")
+            (Join-Path $Root "x64/python.exe")
+            (Join-Path $Root "x86/python.exe")
         )
-        foreach ($CandidatePath in $Candidates) {
-            if (-not (Test-Path $CandidatePath)) {
-                continue
-            }
-            $Candidate = @($CandidatePath)
+        $PythonToolRoot = Join-Path $Root "Python"
+        if (Test-Path $PythonToolRoot) {
+            $CandidatePaths += @(
+                Get-ChildItem -Path $PythonToolRoot -Filter python.exe -Recurse -File -ErrorAction SilentlyContinue |
+                    Sort-Object FullName -Descending |
+                    ForEach-Object { $_.FullName }
+            )
+        }
+        if ((Split-Path $Root -Leaf) -eq "Python") {
+            $CandidatePaths += @(
+                Get-ChildItem -Path $Root -Filter python.exe -Recurse -File -ErrorAction SilentlyContinue |
+                    Sort-Object FullName -Descending |
+                    ForEach-Object { $_.FullName }
+            )
+        }
+    }
+    foreach ($CandidatePath in $CandidatePaths | Where-Object { $_ } | Select-Object -Unique) {
+        if (-not (Test-Path $CandidatePath)) {
+            continue
+        }
+        $Candidate = @([string]$CandidatePath)
+        if (Test-PythonExecutable $Candidate) {
+            Write-Output $Candidate -NoEnumerate
+            return
+        }
+    }
+
+    foreach ($Name in @("python", "python3")) {
+        $Command = Get-Command $Name -ErrorAction SilentlyContinue
+        if ($Command) {
+            $Candidate = @($Command.Source)
             if (Test-PythonExecutable $Candidate) {
                 Write-Output $Candidate -NoEnumerate
                 return
@@ -98,7 +124,7 @@ function Get-PythonCommand {
 
     throw @"
 Python is required to serve release smoke assets.
-Install Python on the runner PATH (for example with actions/setup-python@v5) or set BUBBLEHUB_PYTHON to a working python.exe.
+Install Python on the self-hosted runner PATH or set BUBBLEHUB_PYTHON to a working python.exe.
 "@
 }
 
