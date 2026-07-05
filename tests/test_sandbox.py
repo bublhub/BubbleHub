@@ -69,6 +69,8 @@ def test_native_sandbox_uses_agent_home_and_non_root_user(tmp_path: Path, monkey
                 'test -w "$HOME/workspace" && '
                 'test -f "$HOME/.bashrc" && '
                 'test -f "$HOME/.profile" && '
+                'test "$BUBBLEHUB_PS1" = "$PS1" && '
+                'grep -q "BubbleHub prompt restore" "$HOME/.bashrc" && '
                 'printf "\\n# test append\\n" >> "$HOME/.bashrc" && '
                 'mkdir "$HOME/.openclaw" && '
                 'touch "$HOME/.openclaw/openclaw.json"'
