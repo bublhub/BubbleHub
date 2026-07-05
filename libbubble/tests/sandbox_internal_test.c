@@ -156,6 +156,61 @@ int bubblehub_overfs_mount_tmpfs_at(const char *target, const char *options) {
     return test_mkdir_p_impl(target, 0755);
 }
 
+int __real_open(const char *path, int flags, ...);
+int __real_open64(const char *path, int flags, ...);
+ssize_t __real_read(int fd, void *buf, size_t count);
+ssize_t __real_write(int fd, const void *buf, size_t count);
+
+static int g_fail_append_open = 0;
+static int g_fail_read = 0;
+static int g_fail_write = 0;
+
+int __wrap_open(const char *path, int flags, ...) {
+    if (g_fail_append_open && (flags & O_APPEND)) {
+        errno = EACCES;
+        return -1;
+    }
+    if (flags & O_CREAT) {
+        va_list ap;
+        va_start(ap, flags);
+        mode_t mode = va_arg(ap, mode_t);
+        va_end(ap);
+        return __real_open(path, flags, mode);
+    }
+    return __real_open(path, flags);
+}
+
+int __wrap_open64(const char *path, int flags, ...) {
+    if (g_fail_append_open && (flags & O_APPEND)) {
+        errno = EACCES;
+        return -1;
+    }
+    if (flags & O_CREAT) {
+        va_list ap;
+        va_start(ap, flags);
+        mode_t mode = va_arg(ap, mode_t);
+        va_end(ap);
+        return __real_open64(path, flags, mode);
+    }
+    return __real_open64(path, flags);
+}
+
+ssize_t __wrap_read(int fd, void *buf, size_t count) {
+    if (g_fail_read) {
+        errno = EIO;
+        return -1;
+    }
+    return __real_read(fd, buf, count);
+}
+
+ssize_t __wrap_write(int fd, const void *buf, size_t count) {
+    if (g_fail_write) {
+        errno = EIO;
+        return -1;
+    }
+    return __real_write(fd, buf, count);
+}
+
 #include "../sandbox.c"
 
 static int test_prompt_and_agent_sanitizers(void) {
@@ -194,6 +249,26 @@ static int test_file_and_path_helpers(void) {
     TEST_CHECK_STR(buffer, "hello");
     TEST_CHECK(read_text_file_limited(path, buffer, 0, &len) == -EINVAL);
     TEST_CHECK(write_text_file_if_missing(path, "ignored", 0644) == 0);
+
+    TEST_CHECK(append_text_file_if_missing(path, "marker", "\nmarker\n") == 0);
+    TEST_CHECK(read_text_file_limited(path, buffer, sizeof(buffer), &len) == 0);
+    TEST_CHECK_CONTAINS(buffer, "marker");
+    TEST_CHECK(append_text_file_if_missing(path, "marker", "\nmarker\n") == 0);
+
+    char missing_path[512];
+    snprintf(missing_path, sizeof(missing_path), "%s/missing.txt", dir);
+    TEST_CHECK(append_text_file_if_missing(missing_path, "marker", "\nmarker\n") == -ENOENT);
+    TEST_CHECK(append_text_file_if_missing(nested_dir, "marker", "\nmarker\n") == -EINVAL);
+
+    g_fail_read = 1;
+    TEST_CHECK(append_text_file_if_missing(path, "fault-read", "\nfault-read\n") == -EIO);
+    g_fail_read = 0;
+    g_fail_append_open = 1;
+    TEST_CHECK_EQ(append_text_file_if_missing(path, "fault-open", "\nfault-open\n"), -EACCES);
+    g_fail_append_open = 0;
+    g_fail_write = 1;
+    TEST_CHECK(append_text_file_if_missing(path, "fault-write", "\nfault-write\n") == -EIO);
+    g_fail_write = 0;
 
     char parent[512];
     TEST_CHECK(parent_dir("/tmp/example/file", parent, sizeof(parent)) == 0);
