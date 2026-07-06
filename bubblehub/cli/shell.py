@@ -62,7 +62,7 @@ def command(
 def _interactive_args(shell: str) -> list[str]:
     name = Path(shell).name
     if name == "bash":
-        return ["--noprofile", "--norc", "-i"]
+        return ["-i"]
     if name == "zsh":
-        return ["-f", "-i"]
+        return ["-i"]
     return ["-i"]

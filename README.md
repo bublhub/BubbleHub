@@ -130,6 +130,8 @@ Installed sandboxes run over an Ubuntu 26.04 root filesystem using a per-agent o
 
 For implementation details, security assumptions, and known gaps, see [`docs/sandbox.md`](docs/sandbox.md).
 
+For step-by-step guides, see [`docs/getting_started.md`](docs/getting_started.md) and [`docs/running_an_agent.md`](docs/running_an_agent.md).
+
 ## OpenClaw Example
 
 OpenClaw can be installed entirely from inside the sandbox. The persistent agent home keeps `nvm`, npm global packages, and OpenClaw config across runs.

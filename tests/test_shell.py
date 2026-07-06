@@ -36,9 +36,9 @@ class _Output:
         return None
 
 
-def test_interactive_shell_args_force_interactive_mode() -> None:
-    assert _interactive_args("/usr/bin/bash") == ["--noprofile", "--norc", "-i"]
-    assert _interactive_args("/bin/zsh") == ["-f", "-i"]
+def test_interactive_shell_args_source_sandbox_startup_files() -> None:
+    assert _interactive_args("/usr/bin/bash") == ["-i"]
+    assert _interactive_args("/bin/zsh") == ["-i"]
     assert _interactive_args("/bin/sh") == ["-i"]
 
 
