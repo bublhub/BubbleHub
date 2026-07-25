@@ -30,8 +30,8 @@ irm https://bubblehub.ai/install.ps1 | iex
 Windows double-click installer:
 
 ```powershell
-irm https://bubblehub.ai/download/latest/BubbleHub-0.1.0-x64.exe -OutFile BubbleHub-0.1.0-x64.exe
-.\BubbleHub-0.1.0-x64.exe
+irm https://bubblehub.ai/download/latest/BubbleHub-0.2.0-x64.exe -OutFile BubbleHub-0.2.0-x64.exe
+.\BubbleHub-0.2.0-x64.exe
 ```
 
 Check it:
@@ -55,7 +55,7 @@ docker pull ghcr.io/bublhub/bubblehub:latest
 Use a release image as a base:
 
 ```dockerfile
-FROM ghcr.io/bublhub/bubblehub:v0.1.0
+FROM ghcr.io/bublhub/bubblehub:v0.2.0
 ```
 
 ## Quick Start
@@ -180,20 +180,20 @@ It writes `.github/releases/<tag>.md` from commits since the previous release, a
 Install a specific tag:
 
 ```bash
-curl -fsSL https://bubblehub.ai/download/linux/v0.1.0/install.sh | BUBBLEHUB_VERSION=v0.1.0 bash
+curl -fsSL https://bubblehub.ai/download/linux/v0.2.0/install.sh | BUBBLEHUB_VERSION=v0.2.0 bash
 ```
 
 Download a specific Debian package:
 
 ```bash
-curl -LO https://bubblehub.ai/download/linux/v0.1.0/BubbleHub-0.1.0-x64.deb
-sudo apt install ./BubbleHub-0.1.0-x64.deb
+curl -LO https://bubblehub.ai/download/linux/v0.2.0/BubbleHub-0.2.0-x64.deb
+sudo apt install ./BubbleHub-0.2.0-x64.deb
 ```
 
 Use the matching runtime image:
 
 ```bash
-docker pull ghcr.io/bublhub/bubblehub:v0.1.0
+docker pull ghcr.io/bublhub/bubblehub:v0.2.0
 ```
 ## Build from source
 

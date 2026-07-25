@@ -24,14 +24,20 @@ If the target tag does not exist yet, use the latest existing tag as the previou
 git log --oneline <previous-tag>..HEAD
 ```
 
-4. Read `.github/release_template.md`.
-5. Replace `vX.Y.Z` and `X.Y.Z` placeholders with the target tag/version.
-6. Fill the template with concise, user-facing notes grouped into:
+4. Read contributor names from the actual commit range, including commit authors and co-authors:
+
+```bash
+git log --format='%an <%ae>%n%B' <previous-tag>..HEAD
+```
+
+5. Read `.github/release_template.md`.
+6. Replace `vX.Y.Z` and `X.Y.Z` placeholders with the target tag/version.
+7. Fill the template with concise, user-facing notes grouped into:
    - New Features
    - Improvements
    - Bug Fixes
    - Security & Sandboxing
-7. Save the finished notes to:
+8. Save the finished notes to:
 
 ```text
 .github/releases/<target-tag>.md
@@ -43,24 +49,46 @@ Example:
 .github/releases/v0.1.0.md
 ```
 
-8. After saving the notes, always tell the user how to publish the release. End your response with a **Next step** section containing the exact bash commands to run.
+9. Before committing or tagging, update release-facing docs and examples for the target version. At minimum, check `README.md`, `docs/`, and installation/package examples for the previous tag or version:
+
+```bash
+rg '<previous-tag>|<previous-version>' README.md docs .github
+```
+
+Update stale release commands, Docker image tags, download URLs, installer filenames, and package examples to the target tag/version. The release tag must point at a commit that already includes these docs updates.
+
+10. After saving the notes and docs updates, inspect the current branch and remotes before writing publish commands:
+
+```bash
+git branch --show-current
+git remote -v
+git remote get-url origin
+git remote get-url upstream
+git rev-parse --abbrev-ref --symbolic-full-name @{u}
+```
+
+If `upstream` does not exist, ignore that command's failure. Do not assume `origin` is the release remote; in forked checkouts, `origin` is usually the user's fork and `upstream` is usually the project repository.
+
+11. After saving the notes and docs updates, always tell the user how to publish the release. End your response with a **Next step** section containing the exact bash commands to run.
 
 The release workflow triggers on a pushed `v*` tag and uses `.github/releases/<tag>.md` from that commit. The notes file must be committed before tagging.
 
-Use this pattern (replace `<tag>` with the target tag, e.g. `v0.1.0`):
+Use this pattern after replacing `<changed-release-files>`, `<release-remote>`, `<branch>`, and `<tag>` with values from the actual file/remote/branch context:
 
 ```bash
-git add .github/releases/<tag>.md
+git add <changed-release-files>
 git commit -m "Add release notes for <tag>"
-git push origin HEAD
+git push <release-remote> <branch>
 git tag <tag>
-git push origin <tag>
+git push <release-remote> <tag>
 ```
 
 Before giving these commands:
 
 - Confirm CI is green on the commit you are about to tag.
-- If the user is not on the default branch, use that branch name instead of `HEAD` in `git push`.
+- Confirm `README.md` and other user-facing docs no longer contain stale release versions, URLs, Docker tags, package filenames, or install commands for the previous release.
+- Identify the release remote from `git remote -v`; prefer the project repository remote that owns the release workflow, not a fork remote. If the checkout only has a fork remote, say so and give PR/coordination steps instead of tag-push commands to the fork.
+- Use the current branch name in `git push <release-remote> <branch>`; do not use `HEAD` when a concrete branch name is available.
 - If `<tag>` already exists locally or on the remote, say so and do not repeat create/push tag commands blindly.
 
 Keep the command block copy-pasteable. Do not omit this section when the user asked for release notes.
@@ -79,6 +107,6 @@ Keep the command block copy-pasteable. Do not omit this section when the user as
 - Use versioned filenames in package examples, for example `BubbleHub-0.1.0-x64.deb` and `BubbleHub-0.1.0-x64.exe`.
 - Preserve the installation section structure from `.github/release_template.md`.
 - Keep GitHub links for repository context, not for primary install commands.
-- In the Contributors section, use the generic template line. Do not name Daniel Bransky or dBransky; he is the project inventor, not an external contributor to thank.
+- In the Contributors section, thank specific human contributors from the actual commits in the release range. Exclude Daniel Bransky, dBransky, Copilot, copilot-swe-agent, and any other bot account. Never thank Copilot.
 
 The release workflow uses `.github/releases/<tag>.md` when present. If the file is absent, GitHub generated release notes are used as a fallback.
