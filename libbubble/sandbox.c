@@ -961,6 +961,35 @@ static int write_text_file_if_missing(const char *path, const char *content, mod
     return write_text_file(path, content, mode);
 }
 
+static int append_text_file_if_missing(const char *path, const char *marker, const char *content) {
+    struct stat st;
+    if (stat(path, &st) != 0) {
+        return -errno;
+    }
+    if (!S_ISREG(st.st_mode)) {
+        return -EINVAL;
+    }
+
+    char buffer[65536];
+    size_t content_len = 0;
+    int rc = read_text_file_limited(path, buffer, sizeof(buffer), &content_len);
+    if (rc != 0) {
+        return rc;
+    }
+    if (strstr(buffer, marker) != NULL) {
+        return 0;
+    }
+
+    int fd = open(path, O_WRONLY | O_APPEND | O_CLOEXEC);
+    if (fd < 0) {
+        return -errno;
+    }
+    rc = write_all(fd, content, strlen(content));
+    int err = errno;
+    close(fd);
+    return rc == 0 ? 0 : -err;
+}
+
 static int seed_sandbox_home_profiles(const char *home_path) {
     char bashrc_path[PATH_MAX];
     int written = snprintf(bashrc_path, sizeof(bashrc_path), "%s/.bashrc", home_path);
@@ -971,6 +1000,16 @@ static int seed_sandbox_home_profiles(const char *home_path) {
         bashrc_path,
         "# BubbleHub agent shell setup.\n",
         0644);
+    if (rc != 0) {
+        return rc;
+    }
+    rc = append_text_file_if_missing(
+        bashrc_path,
+        "# BubbleHub prompt restore.",
+        "\n# BubbleHub prompt restore.\n"
+        "if [ -n \"${BUBBLEHUB_PS1:-}\" ]; then\n"
+        "  PS1=\"$BUBBLEHUB_PS1\"\n"
+        "fi\n");
     if (rc != 0) {
         return rc;
     }
@@ -1359,6 +1398,7 @@ static int setup_sandbox_home(
         "\\[\\e[1;34m\\]\\w\\[\\e[0m\\]\\$ ",
         prompt_label);
     setenv("PS1", ps1, 1);
+    setenv("BUBBLEHUB_PS1", ps1, 1);
     setenv("BUBBLEHUB_AGENT_HOME", visible_home_path, 1);
     setenv("BUBBLEHUB_WORKSPACE", visible_workspace_path, 1);
     return setup_sandbox_identity_files(identity_agent_dir, target_root, agent_name, visible_home_path, agent_uid, agent_gid);

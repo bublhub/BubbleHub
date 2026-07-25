@@ -37,6 +37,12 @@ sandbox_internal_exe = executable(
   'sandbox_internal_test.c',
   include_directories: include_dir,
   dependencies: seccomp_dep,
+  link_args: [
+    '-Wl,--wrap=open',
+    '-Wl,--wrap=open64',
+    '-Wl,--wrap=read',
+    '-Wl,--wrap=write',
+  ],
   install: false,
 )
 test('sandbox_internal', sandbox_internal_exe)
