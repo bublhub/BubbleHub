@@ -217,7 +217,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/bublhub/bubblehub
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
@@ -241,7 +241,7 @@ jobs:
 
       - name: Write image digest artifact
         env:
-          IMAGE: ghcr.io/${{ github.repository }}
+          IMAGE: ghcr.io/bublhub/bubblehub
           DIGEST: ${{ steps.build-runtime.outputs.digest }}
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
@@ -321,8 +321,8 @@ jobs:
 
       - name: Build GitHub Release assets
         env:
-          BUBBLEHUB_REPO: ${{ github.repository }}
-          BUBBLEHUB_RUNTIME_IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          BUBBLEHUB_REPO: bublhub/bubblehub
+          BUBBLEHUB_RUNTIME_IMAGE: ghcr.io/bublhub/bubblehub:${{ github.ref_name }}
         run: |
           mkdir -p release-assets
           VERSION="${GITHUB_REF_NAME#v}"
@@ -378,7 +378,7 @@ jobs:
 
       - name: Validate release scripts, installers, and packages
         env:
-          BUBBLEHUB_RUNTIME_IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          BUBBLEHUB_RUNTIME_IMAGE: ghcr.io/bublhub/bubblehub:${{ github.ref_name }}
         run: ./scripts/ci/validate-release-artifacts.sh release-assets
 
   github-release:
@@ -461,7 +461,7 @@ jobs:
 
       - name: Build release install smoke assets
         env:
-          BUBBLEHUB_REPO: ${{ github.repository }}
+          BUBBLEHUB_REPO: bublhub/bubblehub
           BUBBLEHUB_CURRENT_ASSETS_DIR: ${{ github.workspace }}/current-release-assets
           BUBBLEHUB_PREVIOUS_VERSION_TAG: v0.0.0+release.smoke.1
         run: bash scripts/ci/build-release-smoke-assets.sh .ci-artifacts/release-smoke-assets

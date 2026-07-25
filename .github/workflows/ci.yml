@@ -229,7 +229,7 @@ jobs:
 
       - name: Build release install smoke assets
         env:
-          BUBBLEHUB_REPO: ${{ github.repository }}
+          BUBBLEHUB_REPO: bublhub/bubblehub
         run: bash scripts/ci/build-release-smoke-assets.sh .ci-artifacts/release-smoke-assets
 
       - uses: actions/upload-artifact@v4
