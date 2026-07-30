@@ -138,7 +138,7 @@ OutFile "${OUTPUT_DIR}/${PACKAGE_NAME}.exe"
 Icon "${icon_path}"
 RequestExecutionLevel user
 ShowInstDetails show
-BrandingText "BubbleHub Control Center BUBBLEHUB_BUNDLED_INSTALL_PS1"
+BrandingText "BubbleHub desktop app BUBBLEHUB_BUNDLED_INSTALL_PS1"
 !define MUI_ICON "${icon_path}"
 !define MUI_UNICON "${icon_path}"
 !include MUI2.nsh
@@ -146,7 +146,7 @@ BrandingText "BubbleHub Control Center BUBBLEHUB_BUNDLED_INSTALL_PS1"
 !insertmacro MUI_LANGUAGE "English"
 
 Section "Install BubbleHub"
-  DetailPrint "Installing BubbleHub ${VERSION_TAG} runtime and Control Center through PowerShell and WSL..."
+  DetailPrint "Installing BubbleHub ${VERSION_TAG} desktop app through PowerShell and WSL..."
   InitPluginsDir
   SetOutPath "\$PLUGINSDIR"
   File /oname=install.ps1 "${install_script}"

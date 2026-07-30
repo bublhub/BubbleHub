@@ -189,6 +189,20 @@ docker run --rm --privileged --security-opt seccomp=unconfined \
     test -f /usr/share/icons/hicolor/scalable/apps/bubblehub.svg
   '
 
+exe_contains_string() {
+  local path="$1"
+  local needle="$2"
+
+  # Unicode NSIS embeds UI strings as UTF-16LE; also scan ASCII for bundled scripts.
+  if strings "$path" | grep -Fq "$needle"; then
+    return 0
+  fi
+  if strings -el "$path" | grep -Fq "$needle"; then
+    return 0
+  fi
+  return 1
+}
+
 echo "Validating Windows bootstrapper .exe..."
 if [[ ! -s "$EXE" ]]; then
   echo "Windows bootstrapper is empty: $EXE" >&2
@@ -206,15 +220,15 @@ if ! grep -Eiq 'PE32\+.*x86-64|PE32\+.*x86_64|PE32\+.*AMD64' <<<"$EXE_FILE_INFO"
   echo "Build the Windows installer with an amd64 NSIS target." >&2
   exit 1
 fi
-if ! strings "$EXE" | grep -q 'BubbleHub'; then
+if ! exe_contains_string "$EXE" 'BubbleHub'; then
   echo "Windows bootstrapper does not contain expected BubbleHub branding." >&2
   exit 1
 fi
-if ! strings "$EXE" | grep -q 'desktop app'; then
+if ! exe_contains_string "$EXE" 'desktop app'; then
   echo "Windows bootstrapper does not contain expected desktop app branding." >&2
   exit 1
 fi
-if ! strings "$EXE" | grep -q 'BUBBLEHUB_BUNDLED_INSTALL_PS1'; then
+if ! exe_contains_string "$EXE" 'BUBBLEHUB_BUNDLED_INSTALL_PS1'; then
   echo "Windows bootstrapper does not appear to bundle the PowerShell installer." >&2
   exit 1
 fi
