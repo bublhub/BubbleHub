@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ASSETS_DIR="${1:?usage: scripts/ci/validate-release-artifacts.sh <release-assets-dir>}"
+ASSETS_DIR_ARG="${1:?usage: scripts/ci/validate-release-artifacts.sh <release-assets-dir>}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUBBLEHUB_RUNTIME_IMAGE="${BUBBLEHUB_RUNTIME_IMAGE:?BUBBLEHUB_RUNTIME_IMAGE is required}"
+
+case "$ASSETS_DIR_ARG" in
+  /*) ASSETS_DIR="$ASSETS_DIR_ARG" ;;
+  *) ASSETS_DIR="$(pwd)/$ASSETS_DIR_ARG" ;;
+esac
 
 require_file() {
   local path="$1"

@@ -384,8 +384,9 @@ jobs:
   github-release:
     runs-on: ubuntu-22.04
     needs:
-      - release-artifacts
       - validate-release-artifacts
+      - release-smoke-linux
+      - release-smoke-windows
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
@@ -442,7 +443,9 @@ jobs:
 
   release-smoke-assets:
     runs-on: ubuntu-22.04
-    needs: github-release
+    needs:
+      - release-artifacts
+      - validate-release-artifacts
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
@@ -535,9 +538,7 @@ jobs:
 
   discord-announcement:
     runs-on: ubuntu-22.04
-    needs:
-      - release-smoke-linux
-      - release-smoke-windows
+    needs: github-release
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Load GitHub Release
