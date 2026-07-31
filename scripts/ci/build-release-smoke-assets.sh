@@ -48,32 +48,7 @@ stamp_source_version() {
   local src="$1"
   local version="$2"
 
-  python3 - "$src" "$version" <<'PY'
-from __future__ import annotations
-
-import json
-import re
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-version = sys.argv[2]
-
-replacements = {
-    root / "pyproject.toml": (r'(?m)^version = "[^"]+"', f'version = "{version}"'),
-    root / "bubblehub" / "__init__.py": (r'__version__ = "[^"]+"', f'__version__ = "{version}"'),
-    root / "app" / "Cargo.toml": (r'(?m)^version = "[^"]+"', f'version = "{version}"'),
-}
-
-for path, (pattern, replacement) in replacements.items():
-    text = path.read_text(encoding="utf-8")
-    path.write_text(re.sub(pattern, replacement, text, count=1), encoding="utf-8")
-
-package_json = root / "package.json"
-data = json.loads(package_json.read_text(encoding="utf-8"))
-data["version"] = version
-package_json.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-PY
+  bash "$ROOT/scripts/ci/stamp-release-version.sh" "$src" "$version"
 }
 
 safe_image_tag() {

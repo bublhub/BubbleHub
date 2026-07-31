@@ -204,6 +204,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Stamp release version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: scripts/ci/stamp-release-version.sh . "${GITHUB_REF_NAME#v}"
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
@@ -263,6 +267,11 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+
+      - name: Stamp release version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: scripts/ci/stamp-release-version.sh . "${GITHUB_REF_NAME#v}"
 
       - uses: actions/setup-node@v4
         with:
@@ -326,8 +335,22 @@ jobs:
         run: |
           mkdir -p release-assets
           VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            scripts/ci/stamp-release-version.sh . "$VERSION"
+          fi
           docker pull "$BUBBLEHUB_RUNTIME_IMAGE"
-          git archive --format=tar.gz --prefix="bubblehub-${GITHUB_REF_NAME}/" --output=release-assets/bubblehub-source.tar.gz HEAD
+          tar \
+            --exclude='.git' \
+            --exclude='.ci-artifacts' \
+            --exclude='.bubblehub-cache' \
+            --exclude='.openclaw-cache' \
+            --exclude='app/target' \
+            --exclude='libbubble/build' \
+            --exclude='release-assets' \
+            --exclude='windows-control-center' \
+            --exclude='container-image' \
+            --transform "s#^\./#bubblehub-${GITHUB_REF_NAME}/#" \
+            -czf release-assets/bubblehub-source.tar.gz .
           cp scripts/install.sh release-assets/install.sh
           cp scripts/install.ps1 release-assets/install.ps1
           scripts/package-release.sh "$GITHUB_REF_NAME" release-assets
