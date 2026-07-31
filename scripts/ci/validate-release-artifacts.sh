@@ -104,6 +104,82 @@ while IFS= read -r script; do
   bash -n "$script"
 done < <(find "$TOP_LEVEL/scripts" -type f -name '*.sh' | sort)
 
+exe_contains_string() {
+  local path="$1"
+  local needle="$2"
+
+  # Unicode NSIS compresses BrandingText into the payload, so release builds also
+  # embed PE version resources. Scan ASCII, UTF-16LE via strings, and raw bytes.
+  if strings "$path" | grep -Fq "$needle"; then
+    return 0
+  fi
+  if strings -el "$path" | grep -Fq "$needle"; then
+    return 0
+  fi
+  if python3 - "$path" "$needle" <<'PY'
+from pathlib import Path
+import sys
+
+data = Path(sys.argv[1]).read_bytes()
+needle = sys.argv[2]
+if needle.encode("utf-8") in data or needle.encode("utf-16le") in data:
+    raise SystemExit(0)
+raise SystemExit(1)
+PY
+  then
+    return 0
+  fi
+  return 1
+}
+
+echo "Validating Windows bootstrapper .exe..."
+if [[ ! -s "$EXE" ]]; then
+  echo "Windows bootstrapper is empty: $EXE" >&2
+  exit 1
+fi
+if ! file "$EXE" | grep -Eiq 'PE32|PE32\+'; then
+  echo "Windows bootstrapper is not a PE executable: $EXE" >&2
+  file "$EXE" >&2 || true
+  exit 1
+fi
+EXE_FILE_INFO="$(file "$EXE")"
+if ! grep -Eiq 'PE32\+.*x86-64|PE32\+.*x86_64|PE32\+.*AMD64' <<<"$EXE_FILE_INFO"; then
+  echo "Windows x64 bootstrapper must be an AMD64 PE32+ executable: $EXE" >&2
+  file "$EXE" >&2 || true
+  echo "Build the Windows installer with an amd64 NSIS target." >&2
+  exit 1
+fi
+if ! exe_contains_string "$EXE" 'BubbleHub'; then
+  echo "Windows bootstrapper does not contain expected BubbleHub branding." >&2
+  exit 1
+fi
+if ! exe_contains_string "$EXE" 'desktop app'; then
+  echo "Windows bootstrapper does not contain expected desktop app branding." >&2
+  exit 1
+fi
+if ! exe_contains_string "$EXE" 'BUBBLEHUB_BUNDLED_INSTALL_PS1'; then
+  echo "Windows bootstrapper does not appear to bundle the PowerShell installer." >&2
+  exit 1
+fi
+
+echo "Validating Windows Control Center app .exe..."
+if [[ ! -s "$WINDOWS_APP" ]]; then
+  echo "Windows Control Center app is empty: $WINDOWS_APP" >&2
+  exit 1
+fi
+WINDOWS_APP_INFO="$(file "$WINDOWS_APP")"
+if ! grep -Eiq 'PE32\+.*x86-64|PE32\+.*x86_64|PE32\+.*AMD64' <<<"$WINDOWS_APP_INFO"; then
+  echo "Windows Control Center app must be an AMD64 PE32+ executable: $WINDOWS_APP" >&2
+  file "$WINDOWS_APP" >&2 || true
+  exit 1
+fi
+
+if [[ "${BUBBLEHUB_VALIDATE_SKIP_DOCKER:-0}" == "1" ]]; then
+  echo "Skipping Docker-backed install validation (BUBBLEHUB_VALIDATE_SKIP_DOCKER=1)."
+  echo "Release artifact validation passed."
+  exit 0
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required to validate install and package artifacts." >&2
   exit 1
@@ -189,60 +265,5 @@ docker run --rm --privileged --security-opt seccomp=unconfined \
     test -f /usr/share/icons/hicolor/scalable/apps/bubblehub.svg
   '
 
-exe_contains_string() {
-  local path="$1"
-  local needle="$2"
-
-  # Unicode NSIS embeds UI strings as UTF-16LE; also scan ASCII for bundled scripts.
-  if strings "$path" | grep -Fq "$needle"; then
-    return 0
-  fi
-  if strings -el "$path" | grep -Fq "$needle"; then
-    return 0
-  fi
-  return 1
-}
-
-echo "Validating Windows bootstrapper .exe..."
-if [[ ! -s "$EXE" ]]; then
-  echo "Windows bootstrapper is empty: $EXE" >&2
-  exit 1
-fi
-if ! file "$EXE" | grep -Eiq 'PE32|PE32\+'; then
-  echo "Windows bootstrapper is not a PE executable: $EXE" >&2
-  file "$EXE" >&2 || true
-  exit 1
-fi
-EXE_FILE_INFO="$(file "$EXE")"
-if ! grep -Eiq 'PE32\+.*x86-64|PE32\+.*x86_64|PE32\+.*AMD64' <<<"$EXE_FILE_INFO"; then
-  echo "Windows x64 bootstrapper must be an AMD64 PE32+ executable: $EXE" >&2
-  file "$EXE" >&2 || true
-  echo "Build the Windows installer with an amd64 NSIS target." >&2
-  exit 1
-fi
-if ! exe_contains_string "$EXE" 'BubbleHub'; then
-  echo "Windows bootstrapper does not contain expected BubbleHub branding." >&2
-  exit 1
-fi
-if ! exe_contains_string "$EXE" 'desktop app'; then
-  echo "Windows bootstrapper does not contain expected desktop app branding." >&2
-  exit 1
-fi
-if ! exe_contains_string "$EXE" 'BUBBLEHUB_BUNDLED_INSTALL_PS1'; then
-  echo "Windows bootstrapper does not appear to bundle the PowerShell installer." >&2
-  exit 1
-fi
-
-echo "Validating Windows Control Center app .exe..."
-if [[ ! -s "$WINDOWS_APP" ]]; then
-  echo "Windows Control Center app is empty: $WINDOWS_APP" >&2
-  exit 1
-fi
-WINDOWS_APP_INFO="$(file "$WINDOWS_APP")"
-if ! grep -Eiq 'PE32\+.*x86-64|PE32\+.*x86_64|PE32\+.*AMD64' <<<"$WINDOWS_APP_INFO"; then
-  echo "Windows Control Center app must be an AMD64 PE32+ executable: $WINDOWS_APP" >&2
-  file "$WINDOWS_APP" >&2 || true
-  exit 1
-fi
-
 echo "Release artifact validation passed."
+

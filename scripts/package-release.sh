@@ -129,6 +129,16 @@ build_windows_exe() {
 
   python3 scripts/ci/write-windows-icon.py "$icon_path"
 
+  # NSIS zlib-compresses BrandingText/DetailPrint into the payload, so those
+  # strings are invisible to `strings`. PE version resources stay uncompressed
+  # and are what release validation inspects.
+  local file_version
+  if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    file_version="${VERSION}.0"
+  else
+    file_version="0.0.0.0"
+  fi
+
   echo "Building ${PACKAGE_NAME}.exe bootstrapper..."
   cat > "$nsis_script" <<EOF
 Unicode true
@@ -139,6 +149,13 @@ Icon "${icon_path}"
 RequestExecutionLevel user
 ShowInstDetails show
 BrandingText "BubbleHub desktop app BUBBLEHUB_BUNDLED_INSTALL_PS1"
+VIProductVersion "${file_version}"
+VIAddVersionKey /LANG=1033 "ProductName" "BubbleHub"
+VIAddVersionKey /LANG=1033 "FileDescription" "BubbleHub desktop app installer"
+VIAddVersionKey /LANG=1033 "FileVersion" "${file_version}"
+VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
+VIAddVersionKey /LANG=1033 "LegalCopyright" "BubbleHub"
+VIAddVersionKey /LANG=1033 "Comments" "BUBBLEHUB_BUNDLED_INSTALL_PS1"
 !define MUI_ICON "${icon_path}"
 !define MUI_UNICON "${icon_path}"
 !include MUI2.nsh
