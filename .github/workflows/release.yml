@@ -206,7 +206,7 @@ jobs:
 
       - name: Stamp release version from tag
         if: startsWith(github.ref, 'refs/tags/')
-        run: scripts/ci/stamp-release-version.sh . "${GITHUB_REF_NAME#v}"
+        run: bash scripts/ci/stamp-release-version.sh . "${GITHUB_REF_NAME#v}"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -271,7 +271,7 @@ jobs:
       - name: Stamp release version from tag
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
-        run: scripts/ci/stamp-release-version.sh . "${GITHUB_REF_NAME#v}"
+        run: bash scripts/ci/stamp-release-version.sh . "${GITHUB_REF_NAME#v}"
 
       - uses: actions/setup-node@v4
         with:
@@ -336,7 +336,7 @@ jobs:
           mkdir -p release-assets
           VERSION="${GITHUB_REF_NAME#v}"
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            scripts/ci/stamp-release-version.sh . "$VERSION"
+            bash scripts/ci/stamp-release-version.sh . "$VERSION"
           fi
           docker pull "$BUBBLEHUB_RUNTIME_IMAGE"
           tar \
